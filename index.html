@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pratiques Selfty</title>
+<meta name="theme-color" content="#FAEEEE">
+<meta name="apple-mobile-web-app-title" content="Pratiques">
+<link rel="icon" href="https://selfty-academy.github.io/console/contrat/favicon-32.png">
+<link rel="apple-touch-icon" href="https://selfty-academy.github.io/console/contrat/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&family=Jost:wght@400;500;600&display=swap">
+<style>
+:root{
+  --ink:#3A2A2A; --ink-soft:#5C4646; --muted:#8A7070;
+  --paper:#FAEEEE; --surface:#FFFDFB; --card:#F6DFDF; --rose:#F4DDDD; --border:#EBD2D2;
+  --mauve:#966868; --mauve-deep:#7E5252; --lilas:#EAD9EA; --lilas-deep:#6E4A6E;
+  --ok:#4C7A5E; --ok-soft:#E3EEE6; --warn:#A8763B; --danger:#A54848; --danger-soft:#F5DCDC;
+  --r:14px; --shadow:0 1px 2px rgba(58,42,42,.06),0 6px 20px rgba(58,42,42,.05);
+  --nav:calc(64px + env(safe-area-inset-bottom));
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;padding:0}
+body{background-color:var(--paper);color:var(--ink);font:16px/1.5 "Jost",system-ui,sans-serif;-webkit-font-smoothing:antialiased;
+  background-image:
+    radial-gradient(900px 480px at 88% -120px, rgba(150,104,104,.14), transparent 62%),
+    radial-gradient(760px 460px at -8% 12%, rgba(255,253,251,.75), transparent 60%),
+    radial-gradient(680px 420px at 108% 78%, rgba(234,217,234,.55), transparent 62%);
+  background-attachment:fixed}
+a{color:var(--mauve-deep)}
+button{font:inherit;cursor:pointer;border:0;background:none;color:inherit;padding:0}
+input,textarea,select{font:inherit;color:inherit}
+.wrap{max-width:720px;margin:0 auto;padding:0 16px calc(var(--nav) + 28px)}
+
+header{display:flex;align-items:center;gap:12px;padding:16px 0 10px}
+header img{height:34px;width:auto;display:block}
+header .titre{flex:1;min-width:0}
+header h1{font:600 22px/1.1 "Playfair Display",Georgia,serif;margin:0}
+header .sub{font-size:12.5px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.status{font-size:11.5px;color:var(--muted);display:inline-flex;align-items:center;gap:5px}
+.status i{width:7px;height:7px;border-radius:50%;background:var(--ok);display:inline-block}
+.status.err i{background:var(--danger)}
+.status.busy i{background:var(--warn)}
+.status.local i{background:var(--lilas-deep)}
+.moi{border:1px solid var(--border);background:var(--surface);border-radius:999px;padding:6px 12px;font-size:13px;color:var(--ink-soft);white-space:nowrap;max-width:140px;overflow:hidden;text-overflow:ellipsis}
+.moi:hover{background:var(--rose)}
+
+.bandeau{background:var(--lilas);border:1px solid #DCC5DC;border-radius:var(--r);padding:10px 14px;margin:0 0 14px;font-size:13.5px;color:var(--lilas-deep)}
+.bandeau b{font-weight:600}
+
+h2{font:600 19px "Playfair Display",Georgia,serif;margin:18px 0 10px}
+h2 small{font:500 13px "Jost",sans-serif;color:var(--muted);margin-left:6px}
+.intro{color:var(--ink-soft);font-size:14.5px;margin:0 0 14px}
+.sec{font-size:12px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:16px 2px 8px}
+
+.toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:6px 0 12px}
+.seg{display:inline-flex;background:var(--rose);border-radius:999px;padding:3px}
+.seg button{padding:7px 14px;border-radius:999px;font-size:13.5px;font-weight:500;color:var(--ink-soft)}
+.seg button.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 4px rgba(58,42,42,.12)}
+.pills{display:flex;gap:6px;flex-wrap:wrap}
+.pill{border:1px solid var(--border);background:var(--surface);border-radius:999px;padding:6px 12px;font-size:13px;color:var(--ink-soft)}
+.pill.on{background:var(--ink);color:#FFFDFB;border-color:var(--ink)}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;box-shadow:var(--shadow);margin-bottom:10px}
+.card.done{opacity:.62}
+.jour{font:600 15px "Playfair Display",Georgia,serif;margin:16px 2px 8px;color:var(--mauve-deep)}
+.jour:first-child{margin-top:4px}
+.slot{display:flex;gap:14px;align-items:flex-start}
+.slot .h{flex:none;width:64px;text-align:center;padding-top:2px}
+.slot .h b{display:block;font:600 21px/1 "Playfair Display",Georgia,serif;color:var(--ink)}
+.slot .h small{display:block;font-size:12px;color:var(--muted);margin-top:4px}
+.slot .b{flex:1;min-width:0}
+.slot .qui{font-weight:500;font-size:15.5px}
+.slot .qui span{color:var(--muted);font-weight:400}
+.slot .theme{font-size:14px;color:var(--ink-soft);margin-top:3px}
+.slot .note{font-size:13px;color:var(--muted);margin-top:2px;white-space:pre-wrap}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px}
+.chip{display:inline-block;border-radius:999px;padding:2px 10px;font-size:12px;font-weight:600;white-space:nowrap}
+.chip.coach{background:var(--mauve);color:#FFFDFB}
+.chip.coachee{background:var(--lilas);color:var(--lilas-deep)}
+.chip.choix{border:1px solid var(--border);color:var(--ink-soft);font-weight:500}
+.chip.full{background:var(--rose);color:var(--mauve-deep)}
+.chip.mine{background:var(--ink);color:#FFFDFB}
+.chip.ok{background:var(--ok-soft);color:var(--ok)}
+.chip.visio{background:#EEF3F9;color:#3F5B7A;font-weight:500}
+.chip.past{background:#EFE7E7;color:var(--muted)}
+.act{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--mauve);color:#FFFDFB;border-radius:999px;padding:11px 18px;font:500 15px "Jost",sans-serif;transition:.15s;text-decoration:none;border:1px solid var(--mauve)}
+.btn:hover{background:var(--mauve-deep);border-color:var(--mauve-deep)}
+.btn:disabled{opacity:.5;cursor:default}
+.btn.ghost{background:var(--surface);color:var(--ink-soft);border-color:var(--border)}
+.btn.ghost:hover{background:var(--rose)}
+.btn.danger{background:var(--surface);color:var(--danger);border-color:#E7C6C6}
+.btn.danger:hover{background:var(--danger-soft)}
+.btn.ink{background:var(--ink);border-color:var(--ink)}
+.btn.full{width:100%}
+.btn.sm{padding:8px 13px;font-size:13.5px}
+.btn.lg{padding:14px 20px;font-size:16px}
+.vide{color:var(--muted);font-size:14.5px;padding:28px 16px;text-align:center;background:rgba(255,253,251,.6);border:1px dashed var(--border);border-radius:var(--r)}
+.vide .big{font-size:34px;margin-bottom:6px}
+
+label.f{display:block;font-weight:500;font-size:13.5px;color:var(--ink-soft);margin:14px 0 6px}
+label.f small{color:var(--muted);font-weight:400}
+.inp{width:100%;border:1px solid var(--border);border-radius:10px;padding:11px 12px;font:16px "Jost",sans-serif;color:var(--ink);background:var(--surface);outline:none;-webkit-appearance:none;appearance:none;min-height:46px}
+.inp:focus{border-color:var(--mauve);box-shadow:0 0 0 3px rgba(150,104,104,.15)}
+textarea.inp{min-height:84px;resize:vertical}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.quick{display:flex;flex-wrap:wrap;gap:7px}
+.quick button{border:1px solid var(--border);background:var(--surface);border-radius:999px;padding:8px 14px;font-size:14px;color:var(--ink-soft)}
+.quick button.on{background:var(--mauve);border-color:var(--mauve);color:#FFFDFB}
+.hint{font-size:12.5px;color:var(--muted);margin-top:6px}
+
+/* semaine */
+.wk{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden;margin-bottom:12px}
+.wk-head{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid var(--border)}
+.wk-head b{font:600 15px "Playfair Display",Georgia,serif}
+.wk-head button{width:36px;height:36px;border-radius:50%;background:var(--rose);color:var(--mauve-deep);font-size:18px;display:grid;place-items:center}
+.wk-head .today{width:auto;padding:0 12px;font-size:12.5px;border-radius:999px;font-weight:500}
+.wk-grid{display:grid;grid-template-columns:repeat(7,1fr)}
+.wk-day{border-right:1px solid var(--border);min-height:118px;padding:6px 3px;display:flex;flex-direction:column;gap:3px;background:none;align-items:stretch;text-align:center}
+.wk-day:last-child{border-right:0}
+.wk-day.past{background:rgba(58,42,42,.03)}
+.wk-day.sel{background:var(--rose)}
+.wk-day .d{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.wk-day .n{font:600 16px "Playfair Display",Georgia,serif;width:28px;height:28px;line-height:28px;border-radius:50%;margin:0 auto 4px}
+.wk-day.today .n{background:var(--ink);color:#FFFDFB}
+.wchip{border-radius:7px;padding:3px 2px;font-size:10.5px;line-height:1.15;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wchip.st-open{background:var(--mauve);color:#FFFDFB}
+.wchip.st-full{background:var(--rose);color:var(--mauve-deep);font-weight:500}
+.wchip.st-mine{background:var(--ink);color:#FFFDFB}
+.wchip.st-past{background:#EFE7E7;color:var(--muted);font-weight:500}
+.wchip small{display:block;font-size:9.5px;font-weight:400;opacity:.9}
+.wk-more{font-size:10px;color:var(--muted)}
+.legende{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted);padding:0 4px 4px}
+.legende i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+
+/* navigation basse */
+nav.nav{position:fixed;left:0;right:0;bottom:0;z-index:20;background:rgba(255,253,251,.92);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-top:1px solid var(--border);padding:6px 6px calc(6px + env(safe-area-inset-bottom));display:flex;justify-content:space-around}
+nav.nav button{flex:1;max-width:160px;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 4px;border-radius:12px;font-size:11.5px;font-weight:500;color:var(--muted);position:relative}
+nav.nav button .ic{font-size:20px;line-height:1}
+nav.nav button.on{color:var(--mauve-deep);background:var(--rose)}
+nav.nav .bdg{position:absolute;top:0;right:calc(50% - 30px);background:var(--mauve);color:#FFFDFB;border-radius:999px;font-size:10.5px;padding:0 6px;min-width:18px;line-height:17px;text-align:center}
+
+/* accès + identité */
+.gate{max-width:380px;margin:36px auto 0;text-align:center}
+.gate img{height:52px;margin-bottom:14px}
+.gate h2{margin:0 0 6px;font-size:24px}
+.gate p{color:var(--ink-soft);font-size:14.5px;margin:0 0 16px}
+.gate > .inp{text-align:center;font-size:18px;letter-spacing:.06em;margin-bottom:12px}
+.gate .card{text-align:left}
+
+/* modale (feuille basse) */
+.modal{position:fixed;inset:0;background:rgba(58,42,42,.42);display:none;align-items:flex-end;justify-content:center;z-index:50}
+.modal.on{display:flex}
+.sheet{background:var(--surface);border-radius:22px 22px 0 0;width:100%;max-width:560px;padding:18px 18px calc(22px + env(safe-area-inset-bottom));max-height:92vh;overflow:auto;animation:up .2s ease}
+@keyframes up{from{transform:translateY(30px);opacity:0}to{transform:none;opacity:1}}
+@media(min-width:640px){.modal{align-items:center;padding:20px}.sheet{border-radius:22px}}
+.sheet h3{font:600 20px "Playfair Display",Georgia,serif;margin:0 0 4px}
+.sheet .quand{font-size:15px;color:var(--ink-soft);margin-bottom:12px}
+.recap{background:var(--card);border-radius:12px;padding:12px 14px;font-size:14px;margin:10px 0}
+.recap div{padding:3px 0;display:flex;gap:8px}
+.recap b{color:var(--muted);font-weight:500;min-width:74px;flex:none}
+.recap a{word-break:break-all}
+.row{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap}
+.row .btn{flex:1}
+.toast{position:fixed;left:50%;bottom:calc(var(--nav) + 14px);transform:translateX(-50%) translateY(12px);background:var(--ink);color:#FFFDFB;border-radius:999px;padding:11px 18px;font-size:14px;z-index:60;opacity:0;transition:.22s;pointer-events:none;max-width:92vw;text-align:center}
+.toast.on{opacity:1;transform:translateX(-50%)}
+.toast.err{background:var(--danger)}
+.mini{font-size:13px;color:var(--muted)}
+.lien{display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--mauve-deep);word-break:break-all}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <img src="https://selfty-academy.github.io/console/contrat/logo.png" alt="Selfty Academy">
+    <div class="titre">
+      <h1>Pratiques</h1>
+      <div class="sub"><span class="status" id="status"><i></i><span id="status-t">…</span></span></div>
+    </div>
+    <button class="moi" id="moi" onclick="editMe()" hidden></button>
+  </header>
+  <div id="app"></div>
+</div>
+<nav class="nav" id="nav" hidden></nav>
+<div class="modal" id="modal" onclick="if(event.target===this)closeModal()"><div class="sheet" id="sheet"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ---------- config ----------
+const PONT = 'https://script.google.com/macros/s/AKfycbzimUVCum9OFHShtALVl_Iz64lv9ahpX3FqSif9zHr0AEb2RctBTCoXw6FHYAWrbqzrwA/exec';                       // URL /exec du pont Apps Script (remplie au déploiement)
+const KEY = 'pratiques-b65312ad3c23ea1fcf07fc92';
+const PAGE_URL = 'https://selfty-academy.github.io/pratiques/';
+const CODE = 'selfty2026';                     // code d'accès de l'école (comparé en minuscules)
+const Q = new URLSearchParams(location.search);
+const LOCAL = !PONT || PONT.startsWith('__') || Q.get('local') === '1';   // mode test : tout reste sur ce téléphone
+const DUREES = [30, 45, 60];
+const ROLE_TXT = { coach: 'je coache', coachee: 'je suis coachée', choix: 'au choix' };
+
+// ---------- état ----------
+let S = { creneaux: [] };
+let me = null; try { me = JSON.parse(localStorage.getItem('sp_me') || 'null'); } catch (_) { }
+let okCode = false; try { okCode = localStorage.getItem('sp_ok') === '1'; } catch (_) { }
+let tab = (location.hash || '').replace('#', '') || 'open';
+let view = 'list'; try { view = localStorage.getItem('sp_view') || 'list'; } catch (_) { }
+let filter = 'all';
+let weekOffset = 0;
+let selDay = null;
+let draft = { duree: 60, role: 'choix' };
+let busy = false;
+
+// ---------- utils ----------
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const pad = n => String(n).padStart(2, '0');
+function isoDate(d = new Date()) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+const TODAY = () => isoDate();
+const NOW_HM = () => { const d = new Date(); return pad(d.getHours()) + ':' + pad(d.getMinutes()); };
+function addDays(iso, n) { const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + n); return isoDate(d); }
+function weekStart(iso) { const d = new Date(iso + 'T12:00:00'); const w = (d.getDay() + 6) % 7; d.setDate(d.getDate() - w); return isoDate(d); }
+function fmtDate(iso, opts) { return new Date(iso + 'T12:00:00').toLocaleDateString('fr-FR', opts || { weekday: 'long', day: 'numeric', month: 'long' }); }
+const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+function dayLabel(iso) { const t = TODAY(); if (iso === t) return "aujourd'hui"; if (iso === addDays(t, 1)) return 'demain'; return fmtDate(iso); }
+function hFr(h) { return String(h).slice(0, 5).replace(':', 'h'); }
+function isPast(c) { const t = TODAY(); return c.date < t || (c.date === t && c.heure <= NOW_HM()); }
+function slotEnd(c) { const [h, m] = c.heure.split(':').map(Number); const d = new Date(c.date + 'T00:00:00'); d.setHours(h, m + (Number(c.duree) || 60)); return d; }
+function sortSlot(a, b) { return (a.date + a.heure).localeCompare(b.date + b.heure); }
+function toast(msg, err) { const t = $('#toast'); t.textContent = msg; t.className = 'toast on' + (err ? ' err' : ''); clearTimeout(t._h); t._h = setTimeout(() => t.className = 'toast', 3000); }
+function setStatus(txt, cls) { $('#status').className = 'status ' + (cls || ''); $('#status-t').textContent = txt; }
+const validEmail = s => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(s || '').trim());
+
+// Rôle que prend celle qui s'inscrit, et texte associé
+function bookerRole(c) { return c.role === 'coach' ? 'coachee' : c.role === 'coachee' ? 'coach' : 'choix'; }
+function roleChip(c) {
+  if (c.statut === 'complet' && c.b_role) {
+    const pr = c.b_role === 'coach' ? 'coachee' : 'coach';
+    return `<span class="chip ${pr}">${esc(c.prenom)} ${pr === 'coach' ? 'coache' : 'est coachée'}</span><span class="chip ${c.b_role}">${esc(c.b_prenom)} ${c.b_role === 'coach' ? 'coache' : 'est coachée'}</span>`;
+  }
+  const br = bookerRole(c);
+  if (br === 'coachee') return `<span class="chip coach">${esc(c.prenom)} coache</span><span class="chip coachee">tu serais coachée</span>`;
+  if (br === 'coach') return `<span class="chip coachee">${esc(c.prenom)} est coachée</span><span class="chip coach">tu coacherais</span>`;
+  return '<span class="chip choix">rôles au choix</span>';
+}
+// Ce que je fais sur ce créneau (pour Mes pratiques)
+function myRoleTxt(c) {
+  if (c.statut !== 'complet') return c.role === 'coach' ? 'tu coaches' : c.role === 'coachee' ? 'tu es coachée' : 'rôle au choix';
+  const mineRole = c.booked_by_me ? c.b_role : (c.b_role === 'coach' ? 'coachee' : 'coach');
+  return mineRole === 'coach' ? 'tu coaches' : 'tu es coachée';
+}
+function partner(c) { return c.mine ? c.b_prenom : c.prenom; }
+
+// ---------- pont / mode local ----------
+async function api(what, payload = {}) {
+  if (LOCAL) return localApi(what, payload);
+  const r = await fetch(PONT, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ key: KEY, what, ...payload }) });
+  let j; try { j = await r.json(); } catch (_) { throw new Error('le pont ne répond pas correctement'); }
+  if (!j.ok) throw new Error(j.error || 'erreur pont');
+  return j;
+}
+
+// Mode local (page ouverte sans pont, ou ?local=1) : même logique que le pont, dans localStorage de ce navigateur
+function localApi(what, p) {
+  let all = []; try { all = JSON.parse(localStorage.getItem('sp_local') || '[]'); } catch (_) { }
+  const save = () => localStorage.setItem('sp_local', JSON.stringify(all));
+  const email = String(p.email || '').trim().toLowerCase();
+  const stamp = new Date().toISOString();
+  const pub = c => { const o = { ...c }; delete o.email; delete o.b_email; o.mine = !!email && c.email === email; o.booked_by_me = !!email && c.b_email === email; o.has_visio = !!c.visio; if (!o.mine && !o.booked_by_me) delete o.visio; return o; };
+  if (what === 'list') return { ok: true, creneaux: all.filter(c => c.statut !== 'annulé').map(pub) };
+  if (what === 'propose') {
+    const id = 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    all.push({ id, created: stamp, date: p.date, heure: p.heure, duree: Number(p.duree) || 60, prenom: p.prenom, email, role: p.role || 'choix', theme: p.theme || '', visio: p.visio || '', note: p.note || '', statut: 'ouvert', b_prenom: '', b_email: '', b_role: '' });
+    save(); return { ok: true, id };
+  }
+  const c = all.find(x => x.id === p.id);
+  if (!c) throw new Error('créneau introuvable');
+  if (what === 'book') {
+    if (c.statut !== 'ouvert') throw new Error("ce créneau vient d'être pris");
+    if (c.email === email) throw new Error("c'est ton propre créneau");
+    const br = c.role === 'coach' ? 'coachee' : c.role === 'coachee' ? 'coach' : p.role;
+    if (br !== 'coach' && br !== 'coachee') throw new Error('choisis ton rôle');
+    Object.assign(c, { statut: 'complet', b_prenom: p.prenom, b_email: email, b_role: br, b_at: stamp });
+    save(); return { ok: true, mail: false };
+  }
+  if (what === 'unbook') { if (c.b_email !== email) throw new Error("tu n'es pas inscrite sur ce créneau"); Object.assign(c, { statut: 'ouvert', b_prenom: '', b_email: '', b_role: '' }); save(); return { ok: true }; }
+  if (what === 'cancel') { if (c.email !== email) throw new Error('seule la personne qui a proposé le créneau peut l\'annuler'); c.statut = 'annulé'; save(); return { ok: true }; }
+  throw new Error('action inconnue');
+}
+
+// Démo locale (?local=1&demo=1) : quelques créneaux d'autres élèves pour tester l'inscription
+function seedDemo() {
+  if (!LOCAL || Q.get('demo') !== '1') return;
+  let all = []; try { all = JSON.parse(localStorage.getItem('sp_local') || '[]'); } catch (_) { }
+  if (all.length) return;
+  const t = TODAY();
+  const mk = (d, h, prenom, role, theme, dur) => ({ id: 'demo' + d + h.replace(':', ''), created: '', date: addDays(t, d), heure: h, duree: dur || 60, prenom, email: prenom.toLowerCase() + '@exemple.fr', role, theme, visio: 'https://meet.google.com/abc-defg-hij', note: '', statut: 'ouvert', b_prenom: '', b_email: '', b_role: '' });
+  all = [mk(1, '18:30', 'Camille', 'coach', 'Séance découverte', 45), mk(2, '12:00', 'Léa', 'coachee', 'Clarifier un objectif pro'), mk(4, '20:00', 'Inès', 'choix', '', 30), mk(6, '10:00', 'Manon', 'coach', 'Travail sur une croyance limitante')];
+  localStorage.setItem('sp_local', JSON.stringify(all));
+}
+
+async function load(silent) {
+  if (!silent) setStatus('chargement…', 'busy');
+  try {
+    const j = await api('list', { email: me && me.email });
+    S.creneaux = (j.creneaux || []).map(norm).sort(sortSlot);
+    try { localStorage.setItem('sp_cache', JSON.stringify(S.creneaux)); } catch (_) { }
+    if (LOCAL) setStatus('mode test local', 'local');
+    else setStatus('en direct · ' + new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }));
+  } catch (e) {
+    try { const c = localStorage.getItem('sp_cache'); if (c) S.creneaux = JSON.parse(c).map(norm); } catch (_) { }
+    setStatus('hors ligne · copie locale', 'err');
+  }
+  render();
+}
+function norm(c) { c.date = String(c.date).slice(0, 10); c.heure = String(c.heure).slice(0, 5); c.duree = Number(c.duree) || 60; c.theme = c.theme || ''; c.note = c.note || ''; c.b_prenom = c.b_prenom || ''; c.b_role = c.b_role || ''; return c; }
+const byId = id => S.creneaux.find(c => c.id === id);
+
+// ---------- rendu ----------
+function render() {
+  const app = $('#app');
+  $('#nav').hidden = !(okCode && me);
+  $('#moi').hidden = !(okCode && me);
+  if (!okCode) { app.innerHTML = renderGate(); $('#code') && $('#code').focus(); return; }
+  if (!me) { app.innerHTML = renderIdentity(); return; }
+  $('#moi').textContent = me.prenom;
+  renderNav();
+  let html = LOCAL ? '<div class="bandeau"><b>Mode test local :</b> les créneaux restent sur ce téléphone et aucun mail ne part.</div>' : '';
+  if (tab === 'mine') html += renderMine();
+  else if (tab === 'new') html += renderNew();
+  else html += renderOpen();
+  app.innerHTML = html;
+  if (tab === 'new') bindForm();
+}
+
+function renderGate() {
+  return `<div class="gate">
+    <img src="https://selfty-academy.github.io/console/contrat/logo.png" alt="Selfty Academy">
+    <h2>Pratiques entre élèves</h2>
+    <p>Propose un créneau de séance de pratique, ou inscris-toi sur celui d'une autre élève. Entre le code de l'école pour continuer.</p>
+    <input class="inp" id="code" placeholder="Code de l'école" autocomplete="off" autocapitalize="off" onkeydown="if(event.key==='Enter')checkCode()">
+    <button class="btn full lg" onclick="checkCode()">Entrer</button>
+  </div>`;
+}
+function checkCode() {
+  if ($('#code').value.trim().toLowerCase() === CODE) { okCode = true; try { localStorage.setItem('sp_ok', '1'); } catch (_) { } render(); }
+  else toast('Ce code ne correspond pas', true);
+}
+function renderIdentity(edit) {
+  const m = me || { prenom: '', email: '' };
+  return `<div class="gate">
+    <h2>${edit ? 'Tes infos' : 'Bienvenue'}</h2>
+    <p>Ton prénom apparaît sur les créneaux. Ton e-mail sert uniquement aux confirmations et aux rappels de tes pratiques.</p>
+    <div class="card">
+      <label class="f">Ton prénom</label>
+      <input class="inp" id="me-prenom" value="${esc(m.prenom)}" autocomplete="given-name" placeholder="Prénom">
+      <label class="f">Ton e-mail</label>
+      <input class="inp" id="me-email" type="email" value="${esc(m.email)}" autocomplete="email" inputmode="email" placeholder="prenom@exemple.fr" onkeydown="if(event.key==='Enter')saveMe()">
+      <div class="act"><button class="btn full lg" onclick="saveMe()">${edit ? 'Enregistrer' : "C'est parti"}</button></div>
+      ${edit ? '<div class="act"><button class="btn ghost full" onclick="closeModal()">Annuler</button></div>' : ''}
+    </div>
+  </div>`;
+}
+function saveMe() {
+  const prenom = $('#me-prenom').value.trim().replace(/\s+/g, ' ').slice(0, 40), email = $('#me-email').value.trim().toLowerCase();
+  if (!prenom) return toast('Indique ton prénom', true);
+  if (!validEmail(email)) return toast('Cet e-mail ne semble pas valide', true);
+  me = { prenom, email };
+  try { localStorage.setItem('sp_me', JSON.stringify(me)); } catch (_) { }
+  closeModal();
+  load();
+}
+function editMe() { openSheet(renderIdentity(true)); }
+
+function renderNav() {
+  const open = S.creneaux.filter(c => c.statut === 'ouvert' && !isPast(c) && !c.mine).length;
+  const mine = S.creneaux.filter(c => (c.mine || c.booked_by_me) && !isPast(c)).length;
+  $('#nav').innerHTML = [['open', '📅', 'Créneaux', open], ['mine', '🤝', 'Mes pratiques', mine], ['new', '➕', 'Proposer', 0]]
+    .map(([k, ic, l, n]) => `<button class="${tab === k ? 'on' : ''}" onclick="go('${k}')"><span class="ic">${ic}</span>${l}${n ? `<span class="bdg">${n}</span>` : ''}</button>`).join('');
+}
+function go(t) { tab = t; history.replaceState(null, '', '#' + t); window.scrollTo(0, 0); render(); }
+
+// ---- créneaux ouverts ----
+function matchFilter(c) {
+  if (filter === 'coach') return c.role === 'coachee' || c.role === 'choix';
+  if (filter === 'coachee') return c.role === 'coach' || c.role === 'choix';
+  return true;
+}
+function renderOpen() {
+  let html = `<div class="toolbar">
+    <div class="seg"><button class="${view === 'list' ? 'on' : ''}" onclick="setView('list')">Liste</button><button class="${view === 'week' ? 'on' : ''}" onclick="setView('week')">Semaine</button></div>
+    <div class="pills">${[['all', 'Tous'], ['coach', 'Je veux coacher'], ['coachee', 'Je veux être coachée']].map(([k, l]) => `<button class="pill ${filter === k ? 'on' : ''}" onclick="setFilter('${k}')">${l}</button>`).join('')}</div>
+  </div>`;
+  if (view === 'week') { html += renderWeek(); return html; }
+  const list = S.creneaux.filter(c => !isPast(c) && c.statut !== 'annulé' && matchFilter(c));
+  if (!list.length) return html + `<div class="vide"><div class="big">🌱</div>Aucun créneau à venir pour l'instant.<br>Sois la première à en proposer un !<div class="act" style="justify-content:center"><button class="btn" onclick="go('new')">Proposer un créneau</button></div></div>`;
+  let day = '';
+  list.forEach(c => {
+    if (c.date !== day) { day = c.date; html += `<div class="jour">${cap(dayLabel(day))}</div>`; }
+    html += slotCard(c);
+  });
+  return html;
+}
+function setView(v) { view = v; try { localStorage.setItem('sp_view', v); } catch (_) { } render(); }
+function setFilter(f) { filter = f; render(); }
+
+function slotCard(c) {
+  const full = c.statut === 'complet';
+  let state = '', action = '';
+  if (c.mine) { state = `<span class="chip mine">ton créneau</span>` + (full ? `<span class="chip full">avec ${esc(c.b_prenom)}</span>` : `<span class="chip ok">en attente d'un binôme</span>`); action = `<button class="btn ghost sm" onclick="showSlot('${c.id}')">Voir</button>`; }
+  else if (c.booked_by_me) { state = `<span class="chip ok">tu es inscrite</span>`; action = `<button class="btn ghost sm" onclick="showSlot('${c.id}')">Voir</button>`; }
+  else if (full) { state = `<span class="chip full">complet · ${esc(c.prenom)} + ${esc(c.b_prenom)}</span>`; }
+  else { action = `<button class="btn sm" onclick="bookFlow('${c.id}')">Je m'inscris</button><button class="btn ghost sm" onclick="showSlot('${c.id}')">Détails</button>`; }
+  return `<div class="card ${full && !c.mine && !c.booked_by_me ? 'done' : ''}">
+    <div class="slot">
+      <div class="h"><b>${hFr(c.heure)}</b><small>${c.duree} min</small></div>
+      <div class="b">
+        <div class="qui">${esc(c.prenom)} <span>propose</span></div>
+        ${c.theme ? `<div class="theme">${esc(c.theme)}</div>` : ''}
+        ${c.note ? `<div class="note">${esc(c.note)}</div>` : ''}
+        <div class="chips">${roleChip(c)}${state}${c.has_visio ? '<span class="chip visio">🎥 visio prête</span>' : ''}</div>
+      </div>
+    </div>
+    ${action ? `<div class="act">${action}</div>` : ''}
+  </div>`;
+}
+
+// ---- semaine ----
+function renderWeek() {
+  const start = addDays(weekStart(TODAY()), weekOffset * 7);
+  const days = Array.from({ length: 7 }, (_, i) => addDays(start, i));
+  const t = TODAY();
+  const label = fmtDate(days[0], { day: 'numeric', month: 'short' }) + ' au ' + fmtDate(days[6], { day: 'numeric', month: 'short' });
+  let html = `<div class="wk">
+    <div class="wk-head"><button onclick="week(-1)" aria-label="Semaine précédente">‹</button><b>${label}</b><div style="display:flex;gap:6px">${weekOffset ? '<button class="today" onclick="week(0)">Cette semaine</button>' : ''}<button onclick="week(1)" aria-label="Semaine suivante">›</button></div></div>
+    <div class="wk-grid">`;
+  days.forEach(d => {
+    const slots = S.creneaux.filter(c => c.date === d && c.statut !== 'annulé' && matchFilter(c));
+    const cls = (d < t ? 'past ' : '') + (d === t ? 'today ' : '') + (selDay === d ? 'sel' : '');
+    const chips = slots.slice(0, 4).map(c => {
+      const st = isPast(c) ? 'st-past' : (c.mine || c.booked_by_me) ? 'st-mine' : c.statut === 'complet' ? 'st-full' : 'st-open';
+      return `<span class="wchip ${st}">${hFr(c.heure)}<small>${esc(c.prenom)}</small></span>`;
+    }).join('') + (slots.length > 4 ? `<span class="wk-more">+${slots.length - 4}</span>` : '');
+    html += `<button class="wk-day ${cls}" onclick="selectDay('${d}')"><span class="d">${fmtDate(d, { weekday: 'short' }).replace('.', '')}</span><span class="n">${Number(d.slice(8))}</span>${chips}</button>`;
+  });
+  html += `</div></div>
+  <div class="legende"><span><i style="background:var(--mauve)"></i>ouvert</span><span><i style="background:var(--rose);border:1px solid var(--border)"></i>complet</span><span><i style="background:var(--ink)"></i>tes pratiques</span></div>`;
+  const day = selDay && days.includes(selDay) ? selDay : null;
+  if (day) {
+    const slots = S.creneaux.filter(c => c.date === day && c.statut !== 'annulé' && matchFilter(c));
+    html += `<div class="jour">${cap(dayLabel(day))}</div>`;
+    html += slots.length ? slots.map(c => isPast(c) ? pastCard(c) : slotCard(c)).join('') : `<div class="vide">Rien ce jour-là.<div class="act" style="justify-content:center"><button class="btn sm" onclick="newAt('${day}')">Proposer un créneau le ${fmtDate(day, { day: 'numeric', month: 'long' })}</button></div></div>`;
+  } else html += '<p class="mini" style="text-align:center">Touche un jour pour voir ses créneaux.</p>';
+  return html;
+}
+function week(n) { weekOffset = n === 0 ? 0 : weekOffset + n; render(); }
+function selectDay(d) { selDay = selDay === d ? null : d; render(); }
+function newAt(d) { draft.date = d; go('new'); }
+function pastCard(c) {
+  return `<div class="card done"><div class="slot"><div class="h"><b>${hFr(c.heure)}</b><small>${c.duree} min</small></div><div class="b"><div class="qui">${esc(c.prenom)}${c.b_prenom ? ' + ' + esc(c.b_prenom) : ''}</div>${c.theme ? `<div class="theme">${esc(c.theme)}</div>` : ''}<div class="chips"><span class="chip past">passé</span></div></div></div></div>`;
+}
+
+// ---- mes pratiques ----
+function renderMine() {
+  const mine = S.creneaux.filter(c => c.mine || c.booked_by_me);
+  const up = mine.filter(c => !isPast(c)), past = mine.filter(c => isPast(c)).reverse();
+  let html = `<h2>Mes pratiques</h2>`;
+  if (!up.length) html += `<div class="vide"><div class="big">🤝</div>Rien de prévu pour l'instant.<br>Inscris-toi sur un créneau ouvert ou propose le tien.<div class="act" style="justify-content:center"><button class="btn ghost sm" onclick="go('open')">Voir les créneaux</button><button class="btn sm" onclick="go('new')">Proposer</button></div></div>`;
+  else up.forEach(c => { html += mineCard(c); });
+  if (past.length) { html += `<div class="sec">Passées</div>`; past.slice(0, 10).forEach(c => { html += pastCard(c); }); }
+  return html;
+}
+function mineCard(c) {
+  const full = c.statut === 'complet';
+  let chips = c.mine ? '<span class="chip mine">ton créneau</span>' : '<span class="chip ok">tu es inscrite</span>';
+  chips += full ? `<span class="chip full">avec ${esc(partner(c))}</span>` : `<span class="chip choix">en attente d'un binôme</span>`;
+  chips += `<span class="chip ${myRoleTxt(c).includes('coaches') ? 'coach' : myRoleTxt(c).includes('coachée') ? 'coachee' : 'choix'}">${myRoleTxt(c)}</span>`;
+  let act = '';
+  if (full || c.booked_by_me) {
+    act += c.visio ? `<a class="btn sm" href="${esc(c.visio)}" target="_blank" rel="noopener">🎥 Rejoindre la visio</a>` : '';
+    act += `<button class="btn ghost sm" onclick="addCal('${c.id}')">📆 Ajouter à mon agenda</button>`;
+  }
+  act += c.mine ? `<button class="btn danger sm" onclick="cancelFlow('${c.id}')">Annuler le créneau</button>` : `<button class="btn danger sm" onclick="unbookFlow('${c.id}')">Me désinscrire</button>`;
+  return `<div class="card">
+    <div class="slot">
+      <div class="h"><b>${hFr(c.heure)}</b><small>${c.duree} min</small></div>
+      <div class="b">
+        <div class="qui">${cap(dayLabel(c.date))}</div>
+        ${c.theme ? `<div class="theme">${esc(c.theme)}</div>` : ''}
+        ${!c.visio && (full || c.booked_by_me) ? '<div class="note">Pas de lien visio : mettez-vous d\'accord par mail (répondez au mail de confirmation) ou créez un Google Meet.</div>' : ''}
+        <div class="chips">${chips}</div>
+      </div>
+    </div>
+    <div class="act">${act}</div>
+  </div>`;
+}
+
+// ---- proposer ----
+function renderNew() {
+  const d = draft.date || '';
+  return `<h2>Proposer un créneau</h2>
+  <p class="intro">Choisis un moment où tu es disponible pour une séance de pratique en visio. Une autre élève pourra s'y inscrire, et vous recevrez toutes les deux un mail de confirmation.</p>
+  <div class="card">
+    <div class="grid2">
+      <div><label class="f">Date</label><input class="inp" type="date" id="f-date" min="${TODAY()}" value="${esc(d)}"></div>
+      <div><label class="f">Heure</label><input class="inp" type="time" id="f-heure" step="300" value="${esc(draft.heure || '')}"></div>
+    </div>
+    <label class="f">Durée</label>
+    <div class="quick" id="f-duree">${DUREES.map(n => `<button class="${draft.duree === n ? 'on' : ''}" onclick="draft.duree=${n};bindQuick('f-duree',${n})">${n} min</button>`).join('')}</div>
+    <label class="f">Ton rôle</label>
+    <div class="quick" id="f-role">${Object.entries(ROLE_TXT).map(([k, l]) => `<button class="${draft.role === k ? 'on' : ''}" data-v="${k}" onclick="draft.role='${k}';bindQuick('f-role','${k}')">${l}</button>`).join('')}</div>
+    <div class="hint">« Au choix » : celle qui s'inscrit choisit son rôle.</div>
+    <label class="f">Thème <small>(facultatif)</small></label>
+    <input class="inp" id="f-theme" maxlength="120" placeholder="Ex. : clarifier un objectif, séance découverte…" value="${esc(draft.theme || '')}">
+    <label class="f">Lien visio <small>(facultatif, Google Meet, Zoom…)</small></label>
+    <input class="inp" id="f-visio" type="url" inputmode="url" placeholder="https://meet.google.com/…" value="${esc(draft.visio || '')}">
+    <div class="hint">Pas de lien ? Crée un Meet en un clic : <a href="https://meet.google.com/new" target="_blank" rel="noopener">meet.google.com/new</a>, puis colle-le ici.</div>
+    <label class="f">Petit mot pour ton binôme <small>(facultatif)</small></label>
+    <textarea class="inp" id="f-note" maxlength="500" placeholder="Ex. : j'aimerais travailler les questions puissantes…">${esc(draft.note || '')}</textarea>
+    <div class="act"><button class="btn full lg" id="f-go" onclick="submitNew()">Proposer ce créneau</button></div>
+  </div>`;
+}
+function bindQuick(id, v) { document.querySelectorAll('#' + id + ' button').forEach(b => b.classList.toggle('on', b.textContent === v + ' min' || b.dataset.v === String(v))); }
+function bindForm() { ['date', 'heure', 'theme', 'visio', 'note'].forEach(k => { const el = $('#f-' + k); if (el) el.oninput = () => { draft[k] = el.value; }; }); }
+async function submitNew() {
+  const date = $('#f-date').value, heure = $('#f-heure').value;
+  if (!date || !heure) return toast('Indique la date et l\'heure', true);
+  if (date < TODAY() || (date === TODAY() && heure <= NOW_HM())) return toast('Ce créneau est déjà passé', true);
+  const visio = $('#f-visio').value.trim();
+  if (visio && !/^https?:\/\//i.test(visio)) return toast('Le lien visio doit commencer par https://', true);
+  if (busy) return; busy = true; $('#f-go').disabled = true;
+  try {
+    await api('propose', { prenom: me.prenom, email: me.email, date, heure, duree: draft.duree, role: draft.role, theme: $('#f-theme').value.trim(), visio, note: $('#f-note').value.trim() });
+    draft = { duree: 60, role: 'choix' };
+    toast('Créneau proposé ! Il est visible par les autres élèves.');
+    tab = 'mine'; history.replaceState(null, '', '#mine');
+    await load(true);
+  } catch (e) { toast(e.message, true); }
+  busy = false; const b = $('#f-go'); if (b) b.disabled = false;
+}
+
+// ---------- détails / actions ----------
+function recap(c) {
+  return `<div class="recap">
+    <div><b>Quand</b><span>${cap(dayLabel(c.date))} à ${hFr(c.heure)} · ${c.duree} min</span></div>
+    <div><b>Proposé par</b><span>${esc(c.prenom)}${c.mine ? ' (toi)' : ''}</span></div>
+    ${c.b_prenom ? `<div><b>Binôme</b><span>${esc(c.b_prenom)}${c.booked_by_me ? ' (toi)' : ''}</span></div>` : ''}
+    <div><b>Rôles</b><span>${c.statut === 'complet' && c.b_role ? (c.b_role === 'coach' ? `${esc(c.b_prenom)} coache, ${esc(c.prenom)} est coachée` : `${esc(c.prenom)} coache, ${esc(c.b_prenom)} est coachée`) : (c.role === 'coach' ? `${esc(c.prenom)} coache` : c.role === 'coachee' ? `${esc(c.prenom)} est coachée` : 'au choix')}</span></div>
+    ${c.theme ? `<div><b>Thème</b><span>${esc(c.theme)}</span></div>` : ''}
+    ${c.note ? `<div><b>Note</b><span style="white-space:pre-wrap">${esc(c.note)}</span></div>` : ''}
+    ${c.visio ? `<div><b>Visio</b><a href="${esc(c.visio)}" target="_blank" rel="noopener">${esc(c.visio)}</a></div>` : (c.has_visio ? '<div><b>Visio</b><span>lien fourni, visible après ton inscription</span></div>' : '<div><b>Visio</b><span>pas de lien pour l\'instant</span></div>')}
+  </div>`;
+}
+function showSlot(id) {
+  const c = byId(id); if (!c) return;
+  const full = c.statut === 'complet', past = isPast(c);
+  let act = '';
+  if (past) act = '<button class="btn ghost" onclick="closeModal()">Fermer</button>';
+  else if (c.mine) act = (full ? `<button class="btn ghost" onclick="addCal('${c.id}')">📆 Agenda</button>` : '') + `<button class="btn danger" onclick="cancelFlow('${c.id}')">Annuler le créneau</button>`;
+  else if (c.booked_by_me) act = `<button class="btn ghost" onclick="addCal('${c.id}')">📆 Agenda</button><button class="btn danger" onclick="unbookFlow('${c.id}')">Me désinscrire</button>`;
+  else if (full) act = '<button class="btn ghost" onclick="closeModal()">Fermer</button>';
+  else act = `<button class="btn ghost" onclick="closeModal()">Fermer</button><button class="btn" onclick="bookFlow('${c.id}')">Je m'inscris</button>`;
+  openSheet(`<h3>Pratique ${full ? 'complète' : 'ouverte'}</h3><div class="quand">${cap(dayLabel(c.date))} à ${hFr(c.heure)}</div>${recap(c)}<div class="row">${act}</div>`);
+}
+
+let bookRole = '';
+function bookFlow(id) {
+  const c = byId(id); if (!c) return;
+  bookRole = bookerRole(c) === 'choix' ? '' : bookerRole(c);
+  const choix = bookerRole(c) === 'choix' ? `<label class="f">Ton rôle pour cette séance</label><div class="quick" id="b-role"><button data-v="coach" onclick="bookRole='coach';bindQuick('b-role','coach')">je coache</button><button data-v="coachee" onclick="bookRole='coachee';bindQuick('b-role','coachee')">je suis coachée</button></div>` : '';
+  openSheet(`<h3>Je m'inscris</h3><div class="quand">${cap(dayLabel(c.date))} à ${hFr(c.heure)} avec ${esc(c.prenom)}</div>${recap(c)}${choix}
+    <p class="mini">${LOCAL ? 'Mode test : aucun mail ne part.' : 'Vous recevrez toutes les deux un mail de confirmation, puis un rappel la veille vers 18h.'}</p>
+    <div class="row"><button class="btn ghost" onclick="closeModal()">Retour</button><button class="btn" id="b-go" onclick="confirmBook('${c.id}')">Je confirme</button></div>`);
+}
+async function confirmBook(id) {
+  const c = byId(id); if (!c) return;
+  if (bookerRole(c) === 'choix' && !bookRole) return toast('Choisis ton rôle', true);
+  if (busy) return; busy = true; $('#b-go').disabled = true;
+  try {
+    const r = await api('book', { id, prenom: me.prenom, email: me.email, role: bookRole });
+    closeModal();
+    toast(r.mail ? 'C\'est noté ! Le mail de confirmation est parti.' : 'C\'est noté !');
+    tab = 'mine'; history.replaceState(null, '', '#mine');
+    await load(true);
+  } catch (e) { toast(e.message, true); await load(true); }
+  busy = false;
+}
+function unbookFlow(id) {
+  const c = byId(id); if (!c) return;
+  openSheet(`<h3>Me désinscrire</h3><div class="quand">${cap(dayLabel(c.date))} à ${hFr(c.heure)} avec ${esc(c.prenom)}</div>
+    <p>${esc(c.prenom)} sera prévenue par mail et son créneau redeviendra ouvert.</p>
+    <div class="row"><button class="btn ghost" onclick="closeModal()">Retour</button><button class="btn danger" onclick="doAction('unbook','${id}','Tu es désinscrite.')">Je me désinscris</button></div>`);
+}
+function cancelFlow(id) {
+  const c = byId(id); if (!c) return;
+  openSheet(`<h3>Annuler ce créneau</h3><div class="quand">${cap(dayLabel(c.date))} à ${hFr(c.heure)}</div>
+    <p>${c.b_prenom ? esc(c.b_prenom) + ' est inscrite : elle sera prévenue par mail.' : 'Personne n\'est encore inscrite.'} Le créneau disparaît de la liste.</p>
+    <div class="row"><button class="btn ghost" onclick="closeModal()">Retour</button><button class="btn danger" onclick="doAction('cancel','${id}','Créneau annulé.')">J'annule</button></div>`);
+}
+async function doAction(what, id, msg) {
+  if (busy) return; busy = true;
+  try { await api(what, { id, email: me.email }); closeModal(); toast(msg); await load(true); }
+  catch (e) { toast(e.message, true); await load(true); }
+  busy = false;
+}
+
+// ---------- agenda (.ics + Google Agenda) ----------
+function icsStamp(d) { return d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + 'T' + pad(d.getHours()) + pad(d.getMinutes()) + '00'; }
+function calInfo(c) {
+  const start = new Date(c.date + 'T' + c.heure + ':00'), end = slotEnd(c);
+  const who = partner(c) || c.prenom;
+  const title = 'Pratique Selfty avec ' + who;
+  const desc = [myRoleTxt(c).replace(/^tu /, 'Tu '), c.theme ? 'Thème : ' + c.theme : '', c.visio ? 'Visio : ' + c.visio : '', PAGE_URL].filter(Boolean).join('\n');
+  return { start, end, title, desc };
+}
+function addCal(id) {
+  const c = byId(id); if (!c) return;
+  const { start, end, title, desc } = calInfo(c);
+  const g = 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + encodeURIComponent(title) + '&dates=' + icsStamp(start) + '/' + icsStamp(end) + '&ctz=Europe/Paris&details=' + encodeURIComponent(desc) + (c.visio ? '&location=' + encodeURIComponent(c.visio) : '');
+  openSheet(`<h3>Ajouter à mon agenda</h3><div class="quand">${cap(dayLabel(c.date))} à ${hFr(c.heure)} · ${c.duree} min</div>
+    <div class="act" style="flex-direction:column"><a class="btn full" href="${g}" target="_blank" rel="noopener">Google Agenda</a><button class="btn ghost full" onclick="downloadIcs('${c.id}')">Fichier .ics (iPhone, Outlook, Apple Calendar)</button><button class="btn ghost full" onclick="closeModal()">Fermer</button></div>`);
+}
+function downloadIcs(id) {
+  const c = byId(id); if (!c) return;
+  const { start, end, title, desc } = calInfo(c);
+  const e = s => String(s).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
+  const now = new Date();
+  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Selfty Academy//Pratiques//FR', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
+    'BEGIN:VTIMEZONE', 'TZID:Europe/Paris', 'BEGIN:DAYLIGHT', 'TZOFFSETFROM:+0100', 'TZOFFSETTO:+0200', 'TZNAME:CEST', 'DTSTART:19700329T020000', 'RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU', 'END:DAYLIGHT',
+    'BEGIN:STANDARD', 'TZOFFSETFROM:+0200', 'TZOFFSETTO:+0100', 'TZNAME:CET', 'DTSTART:19701025T030000', 'RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU', 'END:STANDARD', 'END:VTIMEZONE',
+    'BEGIN:VEVENT', 'UID:' + c.id + '@selfty-academy.github.io', 'DTSTAMP:' + now.toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z',
+    'DTSTART;TZID=Europe/Paris:' + icsStamp(start), 'DTEND;TZID=Europe/Paris:' + icsStamp(end),
+    'SUMMARY:' + e(title), 'DESCRIPTION:' + e(desc), 'URL:' + PAGE_URL];
+  if (c.visio) lines.push('LOCATION:' + e(c.visio));
+  lines.push('BEGIN:VALARM', 'TRIGGER:-PT30M', 'ACTION:DISPLAY', 'DESCRIPTION:' + e(title), 'END:VALARM', 'END:VEVENT', 'END:VCALENDAR');
+  const blob = new Blob([lines.join('\r\n')], { type: 'text/calendar;charset=utf-8' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'pratique-selfty-' + c.date + '.ics'; document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
+  closeModal();
+}
+
+// ---------- modale ----------
+function openSheet(html) { $('#sheet').innerHTML = html; $('#modal').classList.add('on'); }
+function closeModal() { $('#modal').classList.remove('on'); }
+
+// ---------- démarrage ----------
+seedDemo();
+render();
+if (okCode && me) load(); else setStatus(LOCAL ? 'mode test local' : 'prêt', LOCAL ? 'local' : '');
+document.addEventListener('visibilitychange', () => { if (!document.hidden && okCode && me) load(true); });
+setInterval(() => { if (!document.hidden && okCode && me) load(true); }, 120000);
+</script>
+</body>
+</html>
