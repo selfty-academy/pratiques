@@ -23,6 +23,9 @@ Si l'URL n'affiche pas l'écran d'autorisation : `cd pont && clasp open-script -
 
 ## Ce que fait la page
 
+- **Stats** (23/09/2026) : combien de pratiques tu as faites, combien d'heures, combien dans la promo, **quels outils ont été le plus pratiqués** (barres), ce que toi tu as pratiqué, et la liste des outils que personne n'a encore osé (un clic dessus ouvre le formulaire prérempli). Une pratique est comptée quand le créneau est complet et que l'heure est passée. Calcul côté pont (`stats()` dans `Code.js`), jamais côté page.
+- **Ton lien de visio, collé une fois** (23/09/2026) : dans la fiche identité (le bouton avec ton prénom, en haut), un champ « Ton lien de visio ». Il est enregistré dans l'onglet `Eleves` du Sheet (endpoint `profil_set`) et dans le téléphone, puis prérempli à chaque nouveau créneau. C'est la réponse simple à « qu'elles puissent connecter leur Zoom » : pas d'OAuth Zoom, pas d'app Marketplace, la salle personnelle Zoom ou un Meet permanent suffit.
+- **L'outil pratiqué** (23/09/2026) : menu déroulant dans le formulaire, groupé par module, repris du PDF officiel « Programme Selfty Academy » (constante `OUTILS` dans `index.html`, **à faire valider par Anaïs**). Colonne `Outil` en fin de l'onglet `Creneaux`. Sert au filtre « Tous les outils » et aux statistiques.
 - **Créneaux** : liste des créneaux à venir (par jour) ou vue **Semaine** (7 colonnes, touche un jour pour voir ses créneaux), filtres « Je veux coacher » / « Je veux être coachée ». Bouton « Je m'inscris » : un seul binôme par créneau, le créneau passe en « Complet » avec les deux prénoms. Si le rôle est « au choix », celle qui s'inscrit choisit le sien.
 - **Mes pratiques** : mes créneaux proposés (annuler) et mes inscriptions (me désinscrire), lien visio, « Ajouter à mon agenda » (Google Agenda ou fichier .ics généré par la page).
 - **Proposer** : date, heure, durée 30/45/60, rôle (je coache / je suis coachée / au choix), thème, lien visio, petit mot.
@@ -36,7 +39,7 @@ Si l'URL n'affiche pas l'écran d'autorisation : `cd pont && clasp open-script -
 
 ## Endpoints du pont
 
-`doGet ?key=…&what=setup|list|remind` ; `doPost {key, what, …}` : `list {email}`, `propose {prenom,email,date,heure,duree,role,theme,visio,note}`, `book {id,prenom,email,role?}`, `unbook {id,email}`, `cancel {id,email}`, `remind {}`, `mail_test {to}`.
+`doGet ?key=…&what=setup|list|remind` ; `doPost {key, what, …}` : `list {email}` (renvoie aussi `moi.visio` et `stats`), `propose {prenom,email,date,heure,duree,role,outil,theme,visio,note}`, `book {id,prenom,email,role?}`, `unbook {id,email}`, `cancel {id,email}`, `profil_set {email,prenom,visio}`, `remind {}`, `mail_test {to}`.
 
 Test en ligne de commande (jamais `-X POST` : la redirection 302 casse) :
 ```

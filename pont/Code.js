@@ -23,6 +23,7 @@ function autoriser() {
   const ss = book();
   tab(ss, CR_TAB, CR_HDR);
   tab(ss, IN_TAB, IN_HDR);
+  tab(ss, EL_TAB, EL_HDR);
   ScriptApp.getProjectTriggers();
   MailApp.getRemainingDailyQuota();
   Logger.log('OK ' + ss.getUrl());
@@ -38,9 +39,14 @@ const RAPPEL_HEURE = 18;                 // rappel de la veille, vers 18h (heure
 
 const CR_TAB = 'Creneaux';
 const CR_HDR = ['ID', 'Créé le', 'Date', 'Heure', 'Durée (min)', 'Prénom', 'E-mail', 'Rôle', 'Thème', 'Lien visio', 'Note', 'Statut',
-  'Prénom inscrite', 'E-mail inscrite', 'Rôle inscrite', 'Inscrite le', 'Rappel envoyé', 'MAJ'];
+  'Prénom inscrite', 'E-mail inscrite', 'Rôle inscrite', 'Inscrite le', 'Rappel envoyé', 'MAJ', 'Outil'];
 const CR_KEYS = ['id', 'created', 'date', 'heure', 'duree', 'prenom', 'email', 'role', 'theme', 'visio', 'note', 'statut',
-  'b_prenom', 'b_email', 'b_role', 'b_at', 'rappel', 'updated'];
+  'b_prenom', 'b_email', 'b_role', 'b_at', 'rappel', 'updated', 'outil'];
+// Fiche élève : le lien visio perso, collé une seule fois (demande Alex du 23/09)
+const EL_TAB = 'Eleves';
+const EL_HDR = ['E-mail', 'Prénom', 'Lien visio', 'MAJ'];
+const EL_KEYS = ['email', 'prenom', 'visio', 'updated'];
+
 const IN_TAB = 'Inscriptions';
 const IN_HDR = ['ID', 'Créneau', 'Date', 'Heure', 'Proposé par', 'Inscrite', 'E-mail inscrite', 'Rôle inscrite', 'Inscrite le', 'Désinscrite le'];
 
@@ -72,6 +78,7 @@ function doPost(e) {
     if (p.what === 'book') return out(bookSlot(p));
     if (p.what === 'unbook') return out(unbook(p));
     if (p.what === 'cancel') return out(cancel(p));
+    if (p.what === 'profil_set') return out(profilSet(p));
     if (p.what === 'remind') return out({ ok: true, sent: rappelVeille() });
     if (p.what === 'mail_test') {
       const to = cleanEmail(p.to);
@@ -90,6 +97,7 @@ function setup() {
   const ss = book();
   tab(ss, CR_TAB, CR_HDR);
   tab(ss, IN_TAB, IN_HDR);
+  tab(ss, EL_TAB, EL_HDR);
   const def = ss.getSheetByName('Feuille 1') || ss.getSheetByName('Sheet1');
   if (def && ss.getSheets().length > 1) ss.deleteSheet(def);
   installTriggers();
@@ -153,7 +161,7 @@ function pub(c, email) {
   const booked_by_me = !!email && !!c.b_email && c.b_email === email;
   const o = {
     id: c.id, date: String(c.date).slice(0, 10), heure: String(c.heure).slice(0, 5), duree: Number(c.duree) || 60,
-    prenom: c.prenom, role: c.role, theme: c.theme || '', note: c.note || '', statut: c.statut,
+    prenom: c.prenom, role: c.role, theme: c.theme || '', outil: c.outil || '', note: c.note || '', statut: c.statut,
     b_prenom: c.b_prenom || '', b_role: c.b_role || '', has_visio: !!c.visio, mine: mine, booked_by_me: booked_by_me,
   };
   if (mine || booked_by_me) o.visio = c.visio || '';
@@ -162,13 +170,59 @@ function pub(c, email) {
 
 function list(p) {
   const email = cleanEmail(p.email);
-  const all = rows(tab(book(), CR_TAB, CR_HDR), CR_KEYS);
+  const ss = book();
+  const all = rows(tab(ss, CR_TAB, CR_HDR), CR_KEYS);
   const lim = addDays(today(), -30);
+  const el = email ? rows(tab(ss, EL_TAB, EL_HDR), EL_KEYS).find(x => cleanEmail(x.email) === email) : null;
   return {
     ok: true,
     now: stamp(),
     creneaux: all.filter(c => c.statut !== 'annulé' && String(c.date).slice(0, 10) >= lim).map(c => pub(c, email)),
+    moi: { visio: (el && el.visio) || '' },
+    stats: stats(all, email),
   };
+}
+
+// Combien de pratiques faites, et quels outils ont été le plus pratiqués (demande Alex du 23/09).
+// Une pratique « faite » = un créneau complet (deux personnes) dont l'heure est passée.
+function stats(all, email) {
+  const faites = all.filter(c => c.statut === 'complet' && isPast(c));
+  const outils = {};
+  let moiN = 0, moiMin = 0;
+  const mesOutils = {};
+  faites.forEach(c => {
+    const o = String(c.outil || '').trim();
+    if (o) outils[o] = (outils[o] || 0) + 1;
+    const mine = email && (cleanEmail(c.email) === email || cleanEmail(c.b_email) === email);
+    if (mine) {
+      moiN++; moiMin += Number(c.duree) || 60;
+      if (o) mesOutils[o] = (mesOutils[o] || 0) + 1;
+    }
+  });
+  const tri = obj => Object.keys(obj).map(k => ({ outil: k, n: obj[k] })).sort((a, b) => b.n - a.n);
+  const eleves = {};
+  faites.forEach(c => { [c.email, c.b_email].forEach(e => { e = cleanEmail(e); if (e) eleves[e] = 1; });
+  });
+  return {
+    promo: { faites: faites.length, eleves: Object.keys(eleves).length },
+    outils: tri(outils),
+    moi: { faites: moiN, minutes: moiMin, outils: tri(mesOutils) },
+  };
+}
+
+// Enregistre le lien visio perso de l'élève (une fois pour toutes)
+function profilSet(p) {
+  const email = cleanEmail(p.email), prenom = cleanName(p.prenom);
+  if (!email) return { ok: false, error: 'e-mail manquant' };
+  const visio = String(p.visio || '').trim().slice(0, 300);
+  if (visio && !/^https?:\/\//i.test(visio)) return { ok: false, error: 'le lien visio doit commencer par http' };
+  return withLock(() => {
+    const sh = tab(book(), EL_TAB, EL_HDR);
+    const e = rows(sh, EL_KEYS).find(x => cleanEmail(x.email) === email);
+    if (e) sh.getRange(e._row, 1, 1, EL_HDR.length).setNumberFormat('@').setValues([[email, prenom || e.prenom, visio, stamp()]]);
+    else { sh.appendRow([email, prenom, visio, stamp()]); sh.getRange(sh.getLastRow(), 1, 1, EL_HDR.length).setNumberFormat('@'); }
+    return { ok: true, visio: visio };
+  });
 }
 
 function addDays(iso, n) {
@@ -217,7 +271,7 @@ function propose(p) {
     const id = 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     const now = stamp();
     const row = [id, now, date, heure, duree, prenom, email, role, String(p.theme || '').trim().slice(0, 120), visio,
-      String(p.note || '').trim().slice(0, 500), 'ouvert', '', '', '', '', '', now];
+      String(p.note || '').trim().slice(0, 500), 'ouvert', '', '', '', '', '', now, String(p.outil || '').trim().slice(0, 120)];
     sh.appendRow(row);
     sh.getRange(sh.getLastRow(), 1, 1, row.length).setNumberFormat('@');
     return { ok: true, id: id };

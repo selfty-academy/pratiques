@@ -10,7 +10,7 @@ Dans SchoolMaker : Programmes > le programme > **Ajouter une leçon** (ou modifi
 <div style="max-width:760px;margin:0 auto">
   <iframe src="https://selfty-academy.github.io/pratiques/?embed=1&code=selfty2026"
           title="Pratiques entre élèves"
-          style="width:100%;height:1100px;border:0;border-radius:14px;background:transparent"
+          style="width:100%;height:1250px;border:0;border-radius:14px;background:transparent"
           loading="lazy"></iframe>
 </div>
 ```
@@ -26,13 +26,17 @@ Deux paramètres dans l'adresse :
 - `code=selfty2026` : le code de l'école est accepté automatiquement. L'élève est déjà connectée à SchoolMaker, on ne lui redemande rien.
 - `embed=1` : rendu compact, sans logo ni titre en double (la leçon les affiche déjà), fond transparent pour prendre celui de l'école.
 
-L'élève entre juste son prénom et son e-mail la première fois (mémorisés dans son téléphone), puis elle voit les créneaux.
+L'élève entre juste son prénom, son e-mail et son lien de visio la première fois (mémorisés dans son téléphone et dans le Sheet), puis elle voit les créneaux. Le lien de visio est ensuite prérempli à chaque créneau qu'elle propose.
+
+## Les 4 onglets de la leçon
+
+**Créneaux** (ceux des autres, filtrables par outil) · **Mes pratiques** (les siennes, avec « Ajouter à mon agenda ») · **Proposer** (poser un créneau où on est disponible, en choisissant l'outil qu'on veut pratiquer) · **Stats** (combien de pratiques, quels outils sont les plus pratiqués dans la promo, lesquels personne n'a encore osé).
 
 Option gardée pour plus tard : `&prenom=…&email=…` préremplit l'identité. SchoolMaker ne fournit pas encore ces variables dans un embed ; le jour où c'est le cas, l'élève n'aura plus rien à taper.
 
 ## Si l'embed est refusé ou coupé
 
-- Hauteur coupée en bas : monter `height:1100px` à `1400px`.
+- Hauteur coupée en bas : monter `height:1250px` à `1500px` (l'onglet Stats est le plus haut).
 - Certains éditeurs retirent le `<div>` : coller l'`<iframe>` seule.
 - Si l'iframe est bloquée, mettre dans la description de la leçon un bouton vers la page :
 

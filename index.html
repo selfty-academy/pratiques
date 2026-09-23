@@ -99,6 +99,20 @@ h2 small{font:500 13px "Jost",sans-serif;color:var(--muted);margin-left:6px}
 .btn.sm{padding:8px 13px;font-size:13.5px}
 .btn.lg{padding:14px 20px;font-size:16px}
 .vide{color:var(--muted);font-size:14.5px;padding:28px 16px;text-align:center;background:rgba(255,253,251,.6);border:1px dashed var(--border);border-radius:var(--r)}
+/* statistiques des pratiques (23/09) */
+.kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.kpis>div{background:var(--rose);border-radius:12px;padding:12px 14px}
+.kpis b{display:block;font:600 24px "Playfair Display",Georgia,serif;color:var(--mauve-deep);line-height:1.1}
+.kpis span{font-size:12.5px;color:var(--ink-soft)}
+.bar{display:flex;align-items:center;gap:10px;margin:7px 0}
+.bar .bl{flex:0 0 46%;font-size:13.5px;color:var(--ink-soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar .bt{flex:1;height:9px;background:var(--rose);border-radius:999px;overflow:hidden}
+.bar .bt i{display:block;height:100%;background:var(--mauve);border-radius:999px}
+.bar b{flex:0 0 26px;text-align:right;font-size:13px;color:var(--mauve-deep)}
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.tag{border:1px solid var(--border);background:var(--surface);border-radius:999px;padding:6px 12px;font-size:13px;color:var(--ink-soft);cursor:pointer}
+.tag:hover{background:var(--rose);color:var(--mauve-deep)}
+@media(min-width:560px){.kpis{grid-template-columns:repeat(4,1fr)}}
 .vide .big{font-size:34px;margin-bottom:6px}
 
 label.f{display:block;font-weight:500;font-size:13.5px;color:var(--ink-soft);margin:14px 0 6px}
@@ -204,6 +218,23 @@ const Q = new URLSearchParams(location.search);
 const LOCAL = !PONT || PONT.startsWith('__') || Q.get('local') === '1';   // mode test : tout reste sur ce téléphone
 const DUREES = [30, 45, 60];
 const ROLE_TXT = { coach: 'je coache', coachee: 'je suis coachée', choix: 'au choix' };
+// Les outils du programme, repris du PDF officiel « Programme Selfty Academy » (à faire valider par Anaïs).
+// Les PDF de lecture ne sont pas dans la liste : on ne pratique que ce qui se pratique à deux.
+const OUTILS = [
+  ['Module 00 · Introduction', ['Prendre conscience de ses biais (non-jugement)', 'Refléter ta perception', 'Vision (audio et écrit)', 'Donner et recevoir du feedback', 'Auto-feedback après séance']],
+  ['Module 02 · Compétences fondamentales', ['Écoute centrée sur le cœur', 'Appréciation authentique', 'Refléter les émotions', 'Somatic tracking 1.0 : la gestuelle', 'Questions puissantes et débuts de phrases']],
+  ['Module 03 · Le mental 1.0', ["De l'obstacle à la bénédiction", 'Intègre ton ombre', 'Reprends ta lumière', 'Auto-pardon bienveillant', 'Communication effective']],
+  ['Module 04 · Le parts work', ['La naissance de mes parts', 'Le conseiller interne', 'La réunion des parts', 'Gestalt avec la sensation']],
+  ['Module 05 · Émotions et somatique 1.0', ['Fais parler ton corps', 'Liste de sensations', 'Le raccourci : ressentir dès maintenant ce que tu veux', "Intégrer l'échec et revenir à la présence"]],
+  ['Module 06 · Maîtrise du passé', ['Processus de résolution, version courte', 'Processus de résolution, version longue', 'Création d\u2019un refuge intérieur', "L'enfant intérieur"]],
+  ['Module 07 · Somatique 2.0', ['Mes limites à mon service', 'Les 3 techniques de respiration', 'Première séance', 'Dernière séance']],
+  ['Module 08 · Argent et valeur personnelle', ["Il était une fois l'argent et moi", "Accueillir l'illégitimité, passer de l'autre côté", 'Argent et inconscient', 'Briser le plafond de verre']],
+  ['Module 09 · Objectifs et action alignée', ['Monthly check-in', 'Auto-feedback après séance']],
+  ['Module 11 · Vendre en étant au service', ['La séance de clarté']],
+  ['Module 12 · Ton offre et tes tarifs', ['Apprends de tes succès']],
+  ['Module 14 · Jouer au jeu de la vie', ['Tes clients, ton miroir', '60 jours smart goal']],
+];
+const OUTILS_PLATS = OUTILS.flatMap(([, v]) => v);
 
 // ---------- état ----------
 let S = { creneaux: [] };
@@ -219,6 +250,8 @@ if (!me && Q.get('email')) { me = { prenom: (Q.get('prenom') || '').trim(), emai
 let tab = (location.hash || '').replace('#', '') || 'open';
 let view = 'list'; try { view = localStorage.getItem('sp_view') || 'list'; } catch (_) { }
 let filter = 'all';
+let filtreOutil = '';
+let profil = { visio: '' }; try { profil = JSON.parse(localStorage.getItem('sp_profil') || '{"visio":""}'); } catch (_) { }
 let weekOffset = 0;
 let selDay = null;
 let draft = { duree: 60, role: 'choix' };
@@ -275,15 +308,26 @@ async function api(what, payload = {}) {
 
 // Mode local (page ouverte sans pont, ou ?local=1) : même logique que le pont, dans localStorage de ce navigateur
 function localApi(what, p) {
+  if (what === 'profil_set') { try { localStorage.setItem('sp_profil', JSON.stringify({ visio: p.visio || '' })); } catch (_) { } return { ok: true, visio: p.visio || '' }; }
   let all = []; try { all = JSON.parse(localStorage.getItem('sp_local') || '[]'); } catch (_) { }
   const save = () => localStorage.setItem('sp_local', JSON.stringify(all));
   const email = String(p.email || '').trim().toLowerCase();
   const stamp = new Date().toISOString();
   const pub = c => { const o = { ...c }; delete o.email; delete o.b_email; o.mine = !!email && c.email === email; o.booked_by_me = !!email && c.b_email === email; o.has_visio = !!c.visio; if (!o.mine && !o.booked_by_me) delete o.visio; return o; };
-  if (what === 'list') return { ok: true, creneaux: all.filter(c => c.statut !== 'annulé').map(pub) };
+  if (what === 'list') {
+    const faites = all.filter(c => c.statut === 'complet' && isPast(c));
+    const cnt = (arr, f) => { const o = {}; arr.forEach(x => { const k = f(x); if (k) o[k] = (o[k] || 0) + 1; }); return Object.keys(o).map(k => ({ outil: k, n: o[k] })).sort((a, b) => b.n - a.n); };
+    const mien = c => !!email && (c.email === email || c.b_email === email);
+    const mesF = faites.filter(mien);
+    const el = {}; faites.forEach(c => { [c.email, c.b_email].forEach(e => { if (e) el[e] = 1; }); });
+    let prof = { visio: '' }; try { prof = JSON.parse(localStorage.getItem('sp_profil') || '{"visio":""}'); } catch (_) { }
+    return { ok: true, creneaux: all.filter(c => c.statut !== 'annulé').map(pub), moi: prof,
+      stats: { promo: { faites: faites.length, eleves: Object.keys(el).length }, outils: cnt(faites, c => c.outil),
+               moi: { faites: mesF.length, minutes: mesF.reduce((n, c) => n + (Number(c.duree) || 60), 0), outils: cnt(mesF, c => c.outil) } } };
+  }
   if (what === 'propose') {
     const id = 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-    all.push({ id, created: stamp, date: p.date, heure: p.heure, duree: Number(p.duree) || 60, prenom: p.prenom, email, role: p.role || 'choix', theme: p.theme || '', visio: p.visio || '', note: p.note || '', statut: 'ouvert', b_prenom: '', b_email: '', b_role: '' });
+    all.push({ id, created: stamp, date: p.date, heure: p.heure, duree: Number(p.duree) || 60, prenom: p.prenom, email, role: p.role || 'choix', outil: p.outil || '', theme: p.theme || '', visio: p.visio || '', note: p.note || '', statut: 'ouvert', b_prenom: '', b_email: '', b_role: '' });
     save(); return { ok: true, id };
   }
   const c = all.find(x => x.id === p.id);
@@ -307,7 +351,7 @@ function seedDemo() {
   let all = []; try { all = JSON.parse(localStorage.getItem('sp_local') || '[]'); } catch (_) { }
   if (all.length) return;
   const t = TODAY();
-  const mk = (d, h, prenom, role, theme, dur) => ({ id: 'demo' + d + h.replace(':', ''), created: '', date: addDays(t, d), heure: h, duree: dur || 60, prenom, email: prenom.toLowerCase() + '@exemple.fr', role, theme, visio: 'https://meet.google.com/abc-defg-hij', note: '', statut: 'ouvert', b_prenom: '', b_email: '', b_role: '' });
+  const mk = (d, h, prenom, role, theme, dur, outil) => ({ id: 'demo' + d + h.replace(':', ''), created: '', date: addDays(t, d), heure: h, duree: dur || 60, prenom, email: prenom.toLowerCase() + '@exemple.fr', role, outil: outil || OUTILS_PLATS[(d + h.length) % OUTILS_PLATS.length], theme, visio: 'https://meet.google.com/abc-defg-hij', note: '', statut: 'ouvert', b_prenom: '', b_email: '', b_role: '' });
   all = [mk(1, '18:30', 'Camille', 'coach', 'Séance découverte', 45), mk(2, '12:00', 'Léa', 'coachee', 'Clarifier un objectif pro'), mk(4, '20:00', 'Inès', 'choix', '', 30), mk(6, '10:00', 'Manon', 'coach', 'Travail sur une croyance limitante')];
   localStorage.setItem('sp_local', JSON.stringify(all));
 }
@@ -316,6 +360,8 @@ async function load(silent) {
   if (!silent) setStatus('chargement…', 'busy');
   try {
     const j = await api('list', { email: me && me.email });
+    if (j.moi && j.moi.visio && j.moi.visio !== profil.visio) { profil.visio = j.moi.visio; try { localStorage.setItem('sp_profil', JSON.stringify(profil)); } catch (_) { } }
+    S.stats = j.stats || null;
     S.creneaux = (j.creneaux || []).map(norm).sort(sortSlot);
     try { localStorage.setItem('sp_cache', JSON.stringify(S.creneaux)); } catch (_) { }
     if (LOCAL) setStatus('mode test local', 'local');
@@ -342,6 +388,7 @@ function render() {
   let html = LOCAL ? '<div class="bandeau"><b>Mode test local :</b> les créneaux restent sur ce téléphone et aucun mail ne part.</div>' : '';
   if (tab === 'mine') html += renderMine();
   else if (tab === 'new') html += renderNew();
+  else if (tab === 'stats') html += renderStats();
   else html += renderOpen();
   app.innerHTML = html;
   if (tab === 'new') bindForm();
@@ -370,6 +417,9 @@ function renderIdentity(edit) {
       <input class="inp" id="me-prenom" value="${esc(m.prenom)}" autocomplete="given-name" placeholder="Prénom">
       <label class="f">Ton e-mail</label>
       <input class="inp" id="me-email" type="email" value="${esc(m.email)}" autocomplete="email" inputmode="email" placeholder="prenom@exemple.fr" onkeydown="if(event.key==='Enter')saveMe()">
+      <label class="f">Ton lien de visio <small>(une seule fois)</small></label>
+      <input class="inp" id="me-visio" type="url" inputmode="url" value="${esc(profil.visio || '')}" placeholder="https://us06web.zoom.us/j/… ou https://meet.google.com/…">
+      <div class="hint">Colle ici ton lien Zoom personnel (dans Zoom : Réunions, Salle personnelle, Copier l'invitation) ou crée un Meet permanent sur <a href="https://meet.google.com/new" target="_blank" rel="noopener">meet.google.com/new</a>. Il sera proposé automatiquement à chaque créneau que tu poses, et il n'est visible que par ton binôme.</div>
       <div class="act"><button class="btn full lg" onclick="saveMe()">${edit ? 'Enregistrer' : "C'est parti"}</button></div>
       ${edit ? '<div class="act"><button class="btn ghost full" onclick="closeModal()">Annuler</button></div>' : ''}
     </div>
@@ -377,10 +427,17 @@ function renderIdentity(edit) {
 }
 function saveMe() {
   const prenom = $('#me-prenom').value.trim().replace(/\s+/g, ' ').slice(0, 40), email = $('#me-email').value.trim().toLowerCase();
+  const vis = ($('#me-visio') ? $('#me-visio').value.trim() : '');
+  if (vis && !/^https?:\/\//i.test(vis)) return toast('Le lien visio doit commencer par https://', true);
   if (!prenom) return toast('Indique ton prénom', true);
   if (!validEmail(email)) return toast('Cet e-mail ne semble pas valide', true);
   me = { prenom, email };
   try { localStorage.setItem('sp_me', JSON.stringify(me)); } catch (_) { }
+  if (vis !== (profil.visio || '')) {
+    profil.visio = vis;
+    try { localStorage.setItem('sp_profil', JSON.stringify(profil)); } catch (_) { }
+    api('profil_set', { prenom, email, visio: vis }).catch(() => { });
+  }
   closeModal();
   load();
 }
@@ -389,21 +446,27 @@ function editMe() { openSheet(renderIdentity(true)); }
 function renderNav() {
   const open = S.creneaux.filter(c => c.statut === 'ouvert' && !isPast(c) && !c.mine).length;
   const mine = S.creneaux.filter(c => (c.mine || c.booked_by_me) && !isPast(c)).length;
-  $('#nav').innerHTML = [['open', '📅', 'Créneaux', open], ['mine', '🤝', 'Mes pratiques', mine], ['new', '➕', 'Proposer', 0]]
+  $('#nav').innerHTML = [['open', '📅', 'Créneaux', open], ['mine', '🤝', 'Mes pratiques', mine], ['new', '➕', 'Proposer', 0], ['stats', '📊', 'Stats', 0]]
     .map(([k, ic, l, n]) => `<button class="${tab === k ? 'on' : ''}" onclick="go('${k}')"><span class="ic">${ic}</span>${l}${n ? `<span class="bdg">${n}</span>` : ''}</button>`).join('');
 }
 function go(t) { tab = t; history.replaceState(null, '', '#' + t); window.scrollTo(0, 0); render(); }
 
 // ---- créneaux ouverts ----
 function matchFilter(c) {
+  if (filtreOutil && (c.outil || '') !== filtreOutil) return false;
   if (filter === 'coach') return c.role === 'coachee' || c.role === 'choix';
   if (filter === 'coachee') return c.role === 'coach' || c.role === 'choix';
   return true;
 }
+function setOutil(v) { filtreOutil = v; render(); }
 function renderOpen() {
   let html = `<div class="toolbar">
     <div class="seg"><button class="${view === 'list' ? 'on' : ''}" onclick="setView('list')">Liste</button><button class="${view === 'week' ? 'on' : ''}" onclick="setView('week')">Semaine</button></div>
     <div class="pills">${[['all', 'Tous'], ['coach', 'Je veux coacher'], ['coachee', 'Je veux être coachée']].map(([k, l]) => `<button class="pill ${filter === k ? 'on' : ''}" onclick="setFilter('${k}')">${l}</button>`).join('')}</div>
+    <select class="inp" style="margin-top:8px" onchange="setOutil(this.value)">
+      <option value="">Tous les outils</option>
+      ${outilsProposes().map(o => `<option value="${esc(o)}"${filtreOutil === o ? ' selected' : ''}>${esc(o)}</option>`).join('')}
+    </select>
   </div>`;
   if (view === 'week') { html += renderWeek(); return html; }
   const list = S.creneaux.filter(c => !isPast(c) && c.statut !== 'annulé' && matchFilter(c));
@@ -414,6 +477,11 @@ function renderOpen() {
     html += slotCard(c);
   });
   return html;
+}
+function outilsProposes() {
+  const v = {};
+  S.creneaux.filter(c => !isPast(c) && c.statut !== 'annulé' && c.outil).forEach(c => { v[c.outil] = 1; });
+  return Object.keys(v).sort((a, b) => a.localeCompare(b, 'fr'));
 }
 function setView(v) { view = v; try { localStorage.setItem('sp_view', v); } catch (_) { } render(); }
 function setFilter(f) { filter = f; render(); }
@@ -430,6 +498,7 @@ function slotCard(c) {
       <div class="h"><b>${hFr(c.heure)}</b><small>${c.duree} min</small></div>
       <div class="b">
         <div class="qui">${esc(c.prenom)} <span>propose</span></div>
+        ${c.outil ? `<div class="theme">🧰 ${esc(c.outil)}</div>` : ''}
         ${c.theme ? `<div class="theme">${esc(c.theme)}</div>` : ''}
         ${c.note ? `<div class="note">${esc(c.note)}</div>` : ''}
         <div class="chips">${roleChip(c)}${state}${c.has_visio ? '<span class="chip visio">🎥 visio prête</span>' : ''}</div>
@@ -471,7 +540,7 @@ function week(n) { weekOffset = n === 0 ? 0 : weekOffset + n; render(); }
 function selectDay(d) { selDay = selDay === d ? null : d; render(); }
 function newAt(d) { draft.date = d; go('new'); }
 function pastCard(c) {
-  return `<div class="card done"><div class="slot"><div class="h"><b>${hFr(c.heure)}</b><small>${c.duree} min</small></div><div class="b"><div class="qui">${esc(c.prenom)}${c.b_prenom ? ' + ' + esc(c.b_prenom) : ''}</div>${c.theme ? `<div class="theme">${esc(c.theme)}</div>` : ''}<div class="chips"><span class="chip past">passé</span></div></div></div></div>`;
+  return `<div class="card done"><div class="slot"><div class="h"><b>${hFr(c.heure)}</b><small>${c.duree} min</small></div><div class="b"><div class="qui">${esc(c.prenom)}${c.b_prenom ? ' + ' + esc(c.b_prenom) : ''}</div>${c.outil ? `<div class="theme">🧰 ${esc(c.outil)}</div>` : ''}${c.theme ? `<div class="theme">${esc(c.theme)}</div>` : ''}<div class="chips"><span class="chip past">passé</span></div></div></div></div>`;
 }
 
 // ---- mes pratiques ----
@@ -500,6 +569,7 @@ function mineCard(c) {
       <div class="h"><b>${hFr(c.heure)}</b><small>${c.duree} min</small></div>
       <div class="b">
         <div class="qui">${cap(dayLabel(c.date))}</div>
+        ${c.outil ? `<div class="theme">🧰 ${esc(c.outil)}</div>` : ''}
         ${c.theme ? `<div class="theme">${esc(c.theme)}</div>` : ''}
         ${!c.visio && (full || c.booked_by_me) ? '<div class="note">Pas de lien visio : mettez-vous d\'accord par mail (répondez au mail de confirmation) ou créez un Google Meet.</div>' : ''}
         <div class="chips">${chips}</div>
@@ -507,6 +577,31 @@ function mineCard(c) {
     </div>
     <div class="act">${act}</div>
   </div>`;
+}
+
+// ---- stats : combien de pratiques, quels outils ----
+function renderStats() {
+  const st = S.stats;
+  if (!st) return `<h2>Les pratiques en chiffres</h2><div class="vide">Les chiffres arrivent avec la prochaine synchronisation.</div>`;
+  const heures = Math.round((st.moi.minutes || 0) / 6) / 10;
+  const jamais = OUTILS_PLATS.filter(o => !st.outils.some(x => x.outil === o));
+  const barre = (list, total) => list.length
+    ? list.map(x => `<div class="bar"><div class="bl">${esc(x.outil)}</div><div class="bt"><i style="width:${Math.max(6, Math.round(100 * x.n / Math.max(1, total)))}%"></i></div><b>${x.n}</b></div>`).join('')
+    : '<div class="hint">Personne n\u2019a encore renseigné d\u2019outil sur une pratique terminée.</div>';
+  return `<h2>Les pratiques en chiffres</h2>
+  <div class="card">
+    <div class="kpis">
+      <div><b>${st.moi.faites}</b><span>${st.moi.faites > 1 ? 'pratiques faites' : 'pratique faite'} par toi</span></div>
+      <div><b>${heures} h</b><span>de pratique au total</span></div>
+      <div><b>${st.promo.faites}</b><span>dans la promo</span></div>
+      <div><b>${st.promo.eleves}</b><span>élèves qui ont pratiqué</span></div>
+    </div>
+  </div>
+  <div class="sec">Les outils les plus pratiqués dans la promo</div>
+  <div class="card">${barre(st.outils.slice(0, 12), st.outils.length ? st.outils[0].n : 1)}</div>
+  ${st.moi.outils.length ? `<div class="sec">Ce que toi tu as pratiqué</div><div class="card">${barre(st.moi.outils, st.moi.outils[0].n)}</div>` : ''}
+  ${jamais.length ? `<div class="sec">Jamais pratiqués pour l\u2019instant</div><div class="card"><div class="hint">Personne n\u2019a encore posé de créneau sur ces outils. C\u2019est souvent là qu\u2019il y a le plus à gagner.</div><div class="tags">${jamais.slice(0, 14).map(o => `<button class="tag" onclick="draft.outil='${esc(o).replace(/'/g, "\\'")}';go('new')">${esc(o)}</button>`).join('')}</div></div>` : ''}
+  <p class="mini">Une pratique est comptée quand le créneau a trouvé son binôme et que l\u2019heure est passée.</p>`;
 }
 
 // ---- proposer ----
@@ -524,18 +619,28 @@ function renderNew() {
     <label class="f">Ton rôle</label>
     <div class="quick" id="f-role">${Object.entries(ROLE_TXT).map(([k, l]) => `<button class="${draft.role === k ? 'on' : ''}" data-v="${k}" onclick="draft.role='${k}';bindQuick('f-role','${k}')">${l}</button>`).join('')}</div>
     <div class="hint">« Au choix » : celle qui s'inscrit choisit son rôle.</div>
+    <label class="f">L'outil que tu veux pratiquer <small>(facultatif)</small></label>
+    <select class="inp" id="f-outil">
+      <option value="">Je verrai sur le moment</option>
+      ${OUTILS.map(([mod, list]) => `<optgroup label="${esc(mod)}">${list.map(o => `<option value="${esc(o)}"${draft.outil === o ? ' selected' : ''}>${esc(o)}</option>`).join('')}</optgroup>`).join('')}
+      <option value="__autre"${draft.outil && !OUTILS_PLATS.includes(draft.outil) ? ' selected' : ''}>Autre chose</option>
+    </select>
+    <div class="hint">C'est ce qui permet de savoir quels outils sont les plus pratiqués dans la promo, et lesquels personne n'ose encore essayer.</div>
     <label class="f">Thème <small>(facultatif)</small></label>
     <input class="inp" id="f-theme" maxlength="120" placeholder="Ex. : clarifier un objectif, séance découverte…" value="${esc(draft.theme || '')}">
     <label class="f">Lien visio <small>(facultatif, Google Meet, Zoom…)</small></label>
-    <input class="inp" id="f-visio" type="url" inputmode="url" placeholder="https://meet.google.com/…" value="${esc(draft.visio || '')}">
-    <div class="hint">Pas de lien ? Crée un Meet en un clic : <a href="https://meet.google.com/new" target="_blank" rel="noopener">meet.google.com/new</a>, puis colle-le ici.</div>
+    <input class="inp" id="f-visio" type="url" inputmode="url" placeholder="https://meet.google.com/…" value="${esc(draft.visio !== undefined ? draft.visio : (profil.visio || ''))}">
+    <div class="hint">${profil.visio ? 'Ton lien personnel est déjà rempli. Tu peux le remplacer juste pour ce créneau.' : 'Pas de lien ? Crée un Meet en un clic : <a href="https://meet.google.com/new" target="_blank" rel="noopener">meet.google.com/new</a>, puis colle-le ici. Enregistre-le dans ton profil (ton prénom, en haut) pour ne plus jamais le retaper.'}</div>
     <label class="f">Petit mot pour ton binôme <small>(facultatif)</small></label>
     <textarea class="inp" id="f-note" maxlength="500" placeholder="Ex. : j'aimerais travailler les questions puissantes…">${esc(draft.note || '')}</textarea>
     <div class="act"><button class="btn full lg" id="f-go" onclick="submitNew()">Proposer ce créneau</button></div>
   </div>`;
 }
 function bindQuick(id, v) { document.querySelectorAll('#' + id + ' button').forEach(b => b.classList.toggle('on', b.textContent === v + ' min' || b.dataset.v === String(v))); }
-function bindForm() { ['date', 'heure', 'theme', 'visio', 'note'].forEach(k => { const el = $('#f-' + k); if (el) el.oninput = () => { draft[k] = el.value; }; }); }
+function bindForm() {
+  ['date', 'heure', 'theme', 'visio', 'note'].forEach(k => { const el = $('#f-' + k); if (el) el.oninput = () => { draft[k] = el.value; }; });
+  const o = $('#f-outil'); if (o) o.onchange = () => { draft.outil = o.value; };
+}
 async function submitNew() {
   const date = $('#f-date').value, heure = $('#f-heure').value;
   if (!date || !heure) return toast('Indique la date et l\'heure', true);
@@ -544,7 +649,9 @@ async function submitNew() {
   if (visio && !/^https?:\/\//i.test(visio)) return toast('Le lien visio doit commencer par https://', true);
   if (busy) return; busy = true; $('#f-go').disabled = true;
   try {
-    await api('propose', { prenom: me.prenom, email: me.email, date, heure, duree: draft.duree, role: draft.role, theme: $('#f-theme').value.trim(), visio, note: $('#f-note').value.trim() });
+    const sel = $('#f-outil') ? $('#f-outil').value : '';
+    const outil = sel === '__autre' ? ($('#f-theme').value.trim().slice(0, 120) || 'Autre') : sel;
+    await api('propose', { prenom: me.prenom, email: me.email, date, heure, duree: draft.duree, role: draft.role, outil, theme: $('#f-theme').value.trim(), visio, note: $('#f-note').value.trim() });
     draft = { duree: 60, role: 'choix' };
     toast('Créneau proposé ! Il est visible par les autres élèves.');
     tab = 'mine'; history.replaceState(null, '', '#mine');
@@ -560,6 +667,7 @@ function recap(c) {
     <div><b>Proposé par</b><span>${esc(c.prenom)}${c.mine ? ' (toi)' : ''}</span></div>
     ${c.b_prenom ? `<div><b>Binôme</b><span>${esc(c.b_prenom)}${c.booked_by_me ? ' (toi)' : ''}</span></div>` : ''}
     <div><b>Rôles</b><span>${c.statut === 'complet' && c.b_role ? (c.b_role === 'coach' ? `${esc(c.b_prenom)} coache, ${esc(c.prenom)} est coachée` : `${esc(c.prenom)} coache, ${esc(c.b_prenom)} est coachée`) : (c.role === 'coach' ? `${esc(c.prenom)} coache` : c.role === 'coachee' ? `${esc(c.prenom)} est coachée` : 'au choix')}</span></div>
+    ${c.outil ? `<div><b>Outil</b><span>${esc(c.outil)}</span></div>` : ''}
     ${c.theme ? `<div><b>Thème</b><span>${esc(c.theme)}</span></div>` : ''}
     ${c.note ? `<div><b>Note</b><span style="white-space:pre-wrap">${esc(c.note)}</span></div>` : ''}
     ${c.visio ? `<div><b>Visio</b><a href="${esc(c.visio)}" target="_blank" rel="noopener">${esc(c.visio)}</a></div>` : (c.has_visio ? '<div><b>Visio</b><span>lien fourni, visible après ton inscription</span></div>' : '<div><b>Visio</b><span>pas de lien pour l\'instant</span></div>')}
