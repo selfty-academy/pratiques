@@ -170,6 +170,12 @@ nav.nav .bdg{position:absolute;top:0;right:calc(50% - 30px);background:var(--mau
 .toast.err{background:var(--danger)}
 .mini{font-size:13px;color:var(--muted)}
 .lien{display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--mauve-deep);word-break:break-all}
+/* mode embed : la page vit dans une leçon SchoolMaker, qui affiche déjà le titre et le fond */
+body.embed{background:transparent}
+body.embed header img,body.embed header h1{display:none}
+body.embed header{padding:6px 0 4px}
+body.embed .wrap{padding-left:0;padding-right:0;padding-bottom:calc(var(--nav) + 12px)}
+body.embed .gate img{display:none}
 </style>
 </head>
 <body>
@@ -203,6 +209,13 @@ const ROLE_TXT = { coach: 'je coache', coachee: 'je suis coachée', choix: 'au c
 let S = { creneaux: [] };
 let me = null; try { me = JSON.parse(localStorage.getItem('sp_me') || 'null'); } catch (_) { }
 let okCode = false; try { okCode = localStorage.getItem('sp_ok') === '1'; } catch (_) { }
+// ?code=selfty2026 dans l'adresse (embed SchoolMaker) : l'élève est déjà connectée à l'école, on ne lui redemande rien
+if (!okCode && (Q.get('code') || '').trim().toLowerCase() === CODE) { okCode = true; try { localStorage.setItem('sp_ok', '1'); } catch (_) { } }
+// ?embed=1 : rendu compact pour une leçon SchoolMaker (pas de logo ni de titre en double)
+const EMBED = Q.get('embed') === '1';
+// ?prenom=…&email=… : identité préremplie (SchoolMaker ne les fournit pas encore, gardé pour plus tard)
+if (!me && Q.get('email')) { me = { prenom: (Q.get('prenom') || '').trim(), email: Q.get('email').trim().toLowerCase() };
+  if (me.prenom && me.email) { try { localStorage.setItem('sp_me', JSON.stringify(me)); } catch (_) { } } else { me = null; } }
 let tab = (location.hash || '').replace('#', '') || 'open';
 let view = 'list'; try { view = localStorage.getItem('sp_view') || 'list'; } catch (_) { }
 let filter = 'all';
@@ -317,6 +330,7 @@ function norm(c) { c.date = String(c.date).slice(0, 10); c.heure = String(c.heur
 const byId = id => S.creneaux.find(c => c.id === id);
 
 // ---------- rendu ----------
+if (EMBED) document.body.classList.add('embed');
 function render() {
   const app = $('#app');
   $('#nav').hidden = !(okCode && me);
