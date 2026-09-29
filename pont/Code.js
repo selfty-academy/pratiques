@@ -473,8 +473,10 @@ function icsToken(email) {
   const sig = Utilities.computeHmacSha256Signature(email, icsSecret());
   return Utilities.base64EncodeWebSafe(sig).replace(/=+$/, '').slice(0, 22);
 }
+// Le lien donné aux élèves passe par le VPS (vps/server.js), qui lit ce flux ici (what=ics) et y fusionne les rendez-vous de l'école.
+const FEED_BASE = 'https://187-77-169-11.sslip.io/pratiques/agenda.ics';
 function icsUrl(email) {
-  return ScriptApp.getService().getUrl() + '?key=' + KEY + '&what=ics&email=' + encodeURIComponent(email) + '&t=' + icsToken(email);
+  return FEED_BASE + '?email=' + encodeURIComponent(email) + '&t=' + icsToken(email);
 }
 
 // Flux public de l'école, en cache 6 h

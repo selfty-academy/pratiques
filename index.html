@@ -386,6 +386,26 @@ function seedDemo() {
   localStorage.setItem('sp_local', JSON.stringify(all));
 }
 
+// Repli : si le pont ne renvoie pas les rendez-vous de l'école, la page lit elle-même le flux public de l'agenda
+const ECOLE_ICS = 'https://selfty-academy.github.io/agenda/calls-selfty.ics';
+let ecoleTried = false;
+async function ecoleDirect() {
+  if (ecoleTried) return; ecoleTried = true;
+  try {
+    const txt = await (await fetch(ECOLE_ICS, { cache: 'no-store' })).text();
+    const t = TODAY(), evs = [];
+    txt.replace(/\r\n[ \t]/g, '').split('BEGIN:VEVENT').slice(1).forEach(b => {
+      const g = re => { const m = b.match(re); return m ? m[1].trim() : ''; };
+      const ds = g(/DTSTART[^:]*:(\S+)/), de = g(/DTEND[^:]*:(\S+)/), sum = g(/SUMMARY:(.*)/);
+      if (!ds || !sum || /STATUS:CANCELLED/.test(b)) return;
+      const journee = /^\d{8}$/.test(ds), date = ds.slice(0, 4) + '-' + ds.slice(4, 6) + '-' + ds.slice(6, 8);
+      const hm = x => x && x.length >= 13 ? x.slice(9, 11) + ':' + x.slice(11, 13) : '';
+      if (date >= t) evs.push({ titre: sum.replace(/\\,/g, ',').replace(/\\;/g, ';'), date, heure: journee ? '' : hm(ds), fin: journee ? '' : hm(de), journee });
+    });
+    evs.sort((a, b) => (a.date + a.heure).localeCompare(b.date + b.heure));
+    if (evs.length) { S.ecole = evs.slice(0, 8); if (tab === 'mine') render(); }
+  } catch (_) { }
+}
 let loadSeq = 0;
 async function load(silent) {
   if (!silent) setStatus('chargement…', 'busy');
@@ -396,6 +416,7 @@ async function load(silent) {
     if (j.moi && j.moi.visio && j.moi.visio !== profil.visio) { profil.visio = j.moi.visio; try { localStorage.setItem('sp_profil', JSON.stringify(profil)); } catch (_) { } }
     S.stats = j.stats || null;
     S.ecole = j.ecole || [];
+    if (!S.ecole.length) ecoleDirect();
     S.ics_url = (j.moi && j.moi.ics_url) || '';
     S.creneaux = (j.creneaux || []).map(norm).sort(sortSlot);
     try { localStorage.setItem('sp_cache', JSON.stringify(S.creneaux)); } catch (_) { }
