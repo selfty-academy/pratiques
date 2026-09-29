@@ -561,7 +561,7 @@ const GUIDE = [
   ['video', 'Bienvenue dans les pratiques 🎉', "Ici, tu t'entraînes avec une autre élève, en visio. Chaque pratique dure 1h30 : 45 minutes où tu te fais coacher, 45 minutes où tu coaches. C'est la salle d'entraînement de l'école, ouverte 7 jours sur 7.", ''],
   ['📅', "L'onglet Créneaux", "L'onglet Créneaux, en bas à gauche, te montre le mois : les Selfty Calls, les pratiques de l'école, et les créneaux proposés par les autres élèves sur lesquels tu peux t'inscrire. Touche un jour, puis appuie sur « Je m'inscris ». Vous recevez toutes les deux un mail de confirmation, et un rappel la veille à 18h.", 'open'],
   ['➕', "L'onglet Proposer", "Pas de créneau qui te convient ? Propose le tien : la date, l'heure, la durée et l'outil que tu souhaites pratiquer. Ton lien de visio se remet en automatique, car tu nous l'as déjà donné.", 'new'],
-  ['🤝', "L'onglet Mes pratiques", "Tes pratiques à toi : tes créneaux, tes inscriptions, le lien visio. Connecte ton agenda une fois : elles s'ajoutent dans ton téléphone, à côté des Selfty Calls que tu as déjà.", 'mine'],
+  ['🤝', "L'onglet Mes pratiques", "Tes pratiques à toi : tes créneaux, tes inscriptions, le lien visio. Connecte ton agenda une fois : elles s'ajoutent dans ton téléphone, à côté des Selfty Calls que tu as déjà. Après chaque pratique, raconte-la dans la Communauté : ça compte dans le classement.", 'mine'],
   ['📊', "L'onglet Stats", "Combien de pratiques tu as faites, et ta place dans le classement de la promo. Plus tu pratiques, plus tu montes.", 'stats'],
 ];
 let guideStep = 0;
@@ -733,7 +733,18 @@ function mois(n) { monthOffset = n === 0 ? 0 : monthOffset + n; selDay = null; r
 function selectDay(d) { selDay = selDay === d ? null : d; render(); }
 function newAt(d) { draft.date = d; go('new'); }
 function pastCard(c) {
-  return `<div class="card done"><div class="slot"><div class="h"><b>${hFr(c.heure)}</b><small>${durFr(c.duree)}</small></div><div class="b"><div class="qui">${esc(c.prenom)}${c.b_prenom ? ' + ' + esc(c.b_prenom) : ''}</div>${c.outil ? `<div class="theme">🧰 ${esc(c.outil)}</div>` : ''}${c.theme ? `<div class="theme">${esc(c.theme)}</div>` : ''}<div class="chips"><span class="chip past">passé</span></div></div></div></div>`;
+  return `<div class="card done"><div class="slot"><div class="h"><b>${hFr(c.heure)}</b><small>${durFr(c.duree)}</small></div><div class="b"><div class="qui">${esc(c.prenom)}${c.b_prenom ? ' + ' + esc(c.b_prenom) : ''}</div>${c.outil ? `<div class="theme">🧰 ${esc(c.outil)}</div>` : ''}${c.theme ? `<div class="theme">${esc(c.theme)}</div>` : ''}<div class="chips"><span class="chip past">passé</span></div></div></div>${aRaconter(c) ? `<div class="act">${btnRaconter(c, true)}</div>` : ''}</div>`;
+}
+
+// ---- raconter une pratique dans la Communauté SchoolMaker (= points de gamification) ----
+const COMMU_NEW = 'https://selftyacademy.schoolmaker.co/community/new?space_id=fadf4701-dfeb-4bf6-b8a9-49fea7387434';
+const COMMU_TARGET = EMBED ? '_top' : '_blank';
+function racontes() { try { return JSON.parse(localStorage.getItem('sp_raconte') || '{}'); } catch (_) { return {}; } }
+function raconte(id) { const r = racontes(); r[id] = 1; localStorage.setItem('sp_raconte', JSON.stringify(r)); setTimeout(render, 50); }
+function aRaconter(c) { return c.statut === 'complet' && isPast(c) && !racontes()[c.id] && (Date.now() - new Date(c.date + 'T00:00:00').getTime()) < 21 * 864e5; }
+function btnRaconter(c, ghost) { return `<a class="btn ${ghost ? 'ghost ' : ''}sm" href="${COMMU_NEW}" target="${COMMU_TARGET}" rel="noopener" onclick="raconte('${c.id}')">💬 Raconter dans la Communauté</a>`; }
+function carteRaconter(c) {
+  return `<div class="card agenda"><div class="qui">🎉 Pratique faite avec ${esc(partner(c))}</div><div class="note">Raconte-la en deux lignes dans l'espace Pratiques de la Communauté : ce que tu as pratiqué, ce que tu retiens. Chaque post compte dans le classement de la Communauté.</div><div class="act">${btnRaconter(c)}<button class="btn ghost sm" onclick="raconte('${c.id}')">Passer</button></div></div>`;
 }
 
 // ---- mes pratiques ----
@@ -742,6 +753,7 @@ function renderMine() {
   const up = mine.filter(c => !isPast(c)), past = mine.filter(c => isPast(c)).reverse();
   let html = `<h2>Mes pratiques</h2>`;
   html += `<div class="card agenda"><div class="qui">📆 Ton agenda</div><div class="note">Tes pratiques dans ton téléphone, mises à jour toutes seules, à côté des Selfty Calls que tu as déjà.</div><div class="act"><button class="btn sm" onclick="connectAgenda()">Connecter mon agenda</button></div></div>`;
+  past.filter(aRaconter).slice(0, 2).forEach(c => { html += carteRaconter(c); });
   if (!up.length) html += `<div class="vide"><div class="big">🤝</div>Aucune pratique prévue pour l'instant.<br>Choisis un créneau dans l'onglet Créneaux, ou propose le tien : c'est parti pour ta première pratique.<div class="act" style="justify-content:center"><button class="btn ghost sm" onclick="go('open')">Voir les créneaux</button><button class="btn sm" onclick="go('new')">Proposer</button></div></div>`;
   else up.forEach(c => { html += mineCard(c); });
   if (past.length) { html += `<div class="sec">Passées</div>`; past.slice(0, 10).forEach(c => { html += pastCard(c); }); }
@@ -804,6 +816,7 @@ function renderStats() {
     </div>
     ${!st.moi.faites ? '<div class="hint" style="margin-top:10px">Ta première pratique te fait entrer dans le classement. Propose un créneau ou inscris-toi sur celui d\'une autre élève.</div>' : ''}
   </div>`;
+  html += `<div class="card agenda"><div class="qui">🏅 Tes points dans la Communauté</div><div class="note">Après chaque pratique, raconte-la dans l'espace Pratiques de la Communauté SchoolMaker : ça donne des points dans le classement de la Communauté (le post, puis chaque réaction ou réponse).</div><div class="act"><a class="btn ghost sm" href="${COMMU_NEW}" target="${COMMU_TARGET}" rel="noopener">💬 Ouvrir l'espace Pratiques</a></div></div>`;
   const cl = st.classement || [];
   if (cl.length) {
     html += `<div class="sec">Classement de la promo</div><div class="card"><ol class="rank">${cl.slice(0, 15).map((x, i) => `<li class="${x.moi ? 'moi' : ''}"><span class="pos">${i + 1}</span><span class="nom">${esc(x.prenom)}${x.moi ? ' (toi)' : ''}</span><b>${x.n}</b></li>`).join('')}</ol></div>`;
