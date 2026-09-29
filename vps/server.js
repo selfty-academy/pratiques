@@ -32,14 +32,22 @@ function isPast(c) { const t = today(); return c.date < t || (c.date === t && c.
 
 // ---------- copie locale du Sheet ----------
 const state = { creneaux: [], eleves: [], fetchedAt: 0, refreshing: null, lastError: '' };
+// La copie est aussi sur disque : un redémarrage (ou Google en panne) ne vide jamais le tableau.
+const STATE_FILE = __dirname + '/state.json';
+try { const st = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8')); state.creneaux = st.creneaux || []; state.eleves = st.eleves || []; state.fetchedAt = st.fetchedAt || 0; } catch (_) { }
+function saveState() { try { fs.writeFileSync(STATE_FILE, JSON.stringify({ creneaux: state.creneaux, eleves: state.eleves, fetchedAt: state.fetchedAt })); } catch (e) { console.error('state.json :', e.message); } }
 async function pontPost(body, tries) {
   let last = null;
   for (let i = 0; i < tries; i++) {
     try {
       const r = await fetch(cfg.pont, { method: 'POST', redirect: 'follow', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(Object.assign({ key: cfg.key }, body)) });
       const txt = await r.text();
-      if (txt.trim().startsWith('{')) return JSON.parse(txt);
-      last = new Error('pont : réponse non JSON (' + r.status + ')');
+      if (txt.trim().startsWith('{')) {
+        const j = JSON.parse(txt);
+        // Google perd parfois le corps du POST dans sa redirection : le pont répond alors son « pong » par défaut.
+        if (j && j.pong) { last = new Error('pont : pong (corps de requête perdu)'); }
+        else return j;
+      } else last = new Error('pont : réponse non JSON (' + r.status + ')');
     } catch (e) { last = e; }
     if (i < tries - 1) await new Promise(r => setTimeout(r, 2000 * (i + 1)));
   }
@@ -51,11 +59,15 @@ function refresh() {
     try {
       const j = await pontPost({ what: 'list_full', vkey: cfg.vkey }, 3);
       if (!j.ok) throw new Error(j.error || 'list_full');
-      state.creneaux = (j.creneaux || []).map(c => Object.assign(c, { date: String(c.date).slice(0, 10), heure: String(c.heure).slice(0, 5), duree: Number(c.duree) || 90 }));
+      if (!j.today || !Array.isArray(j.creneaux)) throw new Error('list_full : réponse incomplète');
+      const fresh = (j.creneaux || []).map(c => Object.assign(c, { date: String(c.date).slice(0, 10), heure: String(c.heure).slice(0, 5), duree: Number(c.duree) || 90 }));
+      if (fresh.length < state.creneaux.length - 2) console.warn('refresh : le pont renvoie ' + fresh.length + ' lignes, on en avait ' + state.creneaux.length);
+      state.creneaux = fresh;
       state.eleves = j.eleves || [];
       queue.forEach(job => applyPatch(job.p, job.resp));   // les écritures pas encore arrivées dans le Sheet restent visibles
       state.fetchedAt = Date.now(); state.lastError = '';
-    } catch (e) { state.lastError = String(e.message || e); console.error('refresh :', state.lastError); }
+      saveState();
+    } catch (e) { state.lastError = String(e.message || e); console.error('refresh :', state.lastError); setTimeout(refresh, 15000); }
     finally { state.refreshing = null; }
   })();
   return state.refreshing;
@@ -173,7 +185,7 @@ async function write(p) {
   const err = validate(p);
   if (err) return { ok: false, error: err };
   const job = { at: Date.now(), tries: 0, p };
-  applyPatch(p);
+  applyPatch(p); saveState();
   queue.push(job); saveQueue();
   setImmediate(pump);
   const resp = { ok: true, id: p.id, queued: true };
@@ -264,7 +276,9 @@ http.createServer(async (req, res) => {
     try { p = req.method === 'POST' ? JSON.parse((await readBody(req)) || '{}') : Object.fromEntries(u.searchParams); } catch (_) { return json(res, 400, { ok: false, error: 'JSON invalide' }); }
     const what = String(p.what || '');
     try {
-      if (what === 'ping') return json(res, 200, { ok: true, pong: true, age: Math.round((Date.now() - state.fetchedAt) / 1000), n: state.creneaux.length, lastError: state.lastError });
+      if (what === 'ping') return json(res, 200, { ok: true, pong: true, age: Math.round((Date.now() - state.fetchedAt) / 1000), n: state.creneaux.length, queue: queue.length, lastError: state.lastError });
+      if (what === 'debug') return json(res, 200, { ok: true, fetchedAt: state.fetchedAt, lastError: state.lastError, queue: queue.map(q => q.p.what + ':' + (q.p.id || '') + ':' + q.tries), creneaux: state.creneaux.map(c => [c.id, c.date, c.heure, c.statut, c.prenom, c.b_prenom]), eleves: state.eleves.length });
+      if (what === 'refresh') { await refresh(); return json(res, 200, { ok: true, n: state.creneaux.length, lastError: state.lastError }); }
       if (what === 'list') {
         if (!state.fetchedAt) { await refresh(); }
         if (!state.fetchedAt) { const j = await pontPost({ what: 'list', email: p.email }, 2); j.source = 'pont'; return json(res, 200, j); }

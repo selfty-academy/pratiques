@@ -341,6 +341,7 @@ async function api(what, payload = {}) {
     try {
       const r = await fetch(PONT, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ key: KEY, what, ...payload }) });
       let j; try { j = await r.json(); } catch (_) { throw new Error('le pont ne répond pas'); }
+      if (j.pong) throw new Error('le pont a perdu la requête');
       if (!j.ok) throw new Error(j.error || 'erreur pont');
       return j;
     } catch (e) { lastErr = e; if (i < tries - 1) await new Promise(r => setTimeout(r, 1500 * (i + 1))); }
