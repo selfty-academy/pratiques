@@ -2,7 +2,7 @@
 
 Agenda des séances de pratique entre élèves de la Selfty Academy (coaching entre pairs, en visio) : une élève propose un créneau, une autre s'y inscrit, les deux reçoivent un mail de confirmation puis un rappel la veille vers 18h.
 
-- **Page en ligne** : https://selfty-academy.github.io/pratiques/ (code de l'école `Selfty2026`, demandé une fois par téléphone).
+- **Page en ligne** : https://selfty-academy.github.io/pratiques/ (code de l'école `Selfty2026`, demandé une fois par téléphone). **Secours VPS** (à jour pendant la suspension GitHub, utilisé par l'iframe SchoolMaker) : https://187-77-169-11.sslip.io/pratiques/ (rsync de `index.html` vers `alex@187.77.169.11:/var/www/secours/pratiques/`).
 - **Un seul fichier** : `index.html` (mobile d'abord, DA Selfty, logo encre hébergé sur `selfty-academy.github.io/console/contrat/logo.png`).
 - **Pont Apps Script** : dossier `pont/` (clasp, **compte selfty.academy, profil `--user selfty`**). Données dans le Google Sheet « Pratiques Selfty » (onglets `Creneaux` + `Inscriptions`) créé par le pont dans le Drive de selfty.academy. Aucune donnée personnelle dans ce repo.
 - **Mode test local** : `index.html?local=1` (les créneaux restent dans le navigateur, aucun mail), `?local=1&demo=1` ajoute 4 créneaux fictifs d'autres élèves.
@@ -22,6 +22,9 @@ Réponse attendue : `{"ok":true,"sheet_url":"…","triggers":["rappelVeille"],�
 Si l'URL n'affiche pas l'écran d'autorisation : `cd pont && clasp open-script --user selfty`, exécuter la fonction `autoriser()` dans l'éditeur, accepter, puis rouvrir l'URL de setup.
 
 ## Ce que fait la page
+
+- **Guide intégré** (29/09/2026) : 5 écrans au premier passage (après la fiche identité), rejouable avec le bouton « ? » de l'en-tête (`GUIDE`, `showGuide`, mémorisé dans `sp_guide`).
+- **Connecter mon agenda** (29/09/2026) : dans Mes pratiques, carte « Ton agenda ». Chaque élève a un flux .ics signé (`what=ics&email=…&t=<HMAC>`, secret `ICS_SECRET` en propriété de script, URL renvoyée par `list` dans `moi.ics_url`) : ses pratiques (proposées ou réservées, alarme 30 min si binôme trouvé) + tous les rendez-vous de l'école recopiés depuis `selfty-academy.github.io/agenda/calls-selfty.ics` (cache 6 h, scope `script.external_request`). Boutons Google Agenda (`calendar.google.com/calendar/r?cid=webcal://…`), Apple (`webcal://`), copier le lien. `list` renvoie aussi `ecole` (8 prochains rendez-vous) affichés sous Mes pratiques. Durées : 30, 45, 1h, **1h30 (défaut)**.
 
 - **Stats** (23/09/2026) : combien de pratiques tu as faites, combien d'heures, combien dans la promo, **quels outils ont été le plus pratiqués** (barres), ce que toi tu as pratiqué, et la liste des outils que personne n'a encore osé (un clic dessus ouvre le formulaire prérempli). Une pratique est comptée quand le créneau est complet et que l'heure est passée. Calcul côté pont (`stats()` dans `Code.js`), jamais côté page.
 - **Ton lien de visio, collé une fois** (23/09/2026) : dans la fiche identité (le bouton avec ton prénom, en haut), un champ « Ton lien de visio ». Il est enregistré dans l'onglet `Eleves` du Sheet (endpoint `profil_set`) et dans le téléphone, puis prérempli à chaque nouveau créneau. C'est la réponse simple à « qu'elles puissent connecter leur Zoom » : pas d'OAuth Zoom, pas d'app Marketplace, la salle personnelle Zoom ou un Meet permanent suffit.

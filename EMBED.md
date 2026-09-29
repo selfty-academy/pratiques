@@ -1,5 +1,7 @@
 # Mettre la réservation des pratiques DANS SchoolMaker
 
+**Fait le 29/09/2026** : section « PRATIQUES ENTRE ÉLÈVES » (id 86c2b53f) en tête du programme Facilitation, leçon « Réserver une pratique » (id 59d5b796) type Embed. Section **non publiée** à la demande d'Alex (visible seulement par les admins Anaïs + Alex) : la publier via le bouton de la section quand Anaïs a validé. Pendant la suspension GitHub, l'iframe pointe sur le secours VPS.
+
 Demande d'Anaïs (21/09) : le tableau de réservation des pratiques doit vivre **dans** l'école, pas sur une page externe.
 
 ## Le code à coller
@@ -8,7 +10,7 @@ Dans SchoolMaker : Programmes > le programme > **Ajouter une leçon** (ou modifi
 
 ```html
 <div style="max-width:760px;margin:0 auto">
-  <iframe src="https://selfty-academy.github.io/pratiques/?embed=1&code=selfty2026"
+  <iframe src="https://187-77-169-11.sslip.io/pratiques/?embed=1&code=selfty2026"
           title="Pratiques entre élèves"
           style="width:100%;height:1250px;border:0;border-radius:14px;background:transparent"
           loading="lazy"></iframe>
