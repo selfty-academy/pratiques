@@ -26,6 +26,7 @@ function autoriser() {
   tab(ss, EL_TAB, EL_HDR);
   ScriptApp.getProjectTriggers();
   MailApp.getRemainingDailyQuota();
+  UrlFetchApp.fetch(AGENDA_ICS_URL, { muteHttpExceptions: true });   // scope external_request (agenda de l'école)
   Logger.log('OK ' + ss.getUrl());
 }
 
@@ -60,6 +61,8 @@ function doGet(e) {
   try {
     if (q.what === 'setup') return out(setup());
     if (q.what === 'list') return out(list({}));
+    if (q.what === 'ics') return icsFeed(q);
+    if (q.what === 'ecole_debug') { try { const r = UrlFetchApp.fetch(AGENDA_ICS_URL, { muteHttpExceptions: true }); return out({ ok: true, code: r.getResponseCode(), len: r.getContentText().length, n: ecoleEvents().length }); } catch (err) { return out({ ok: false, err: String(err) }); } }
     if (q.what === 'remind') return out({ ok: true, sent: rappelVeille() });
   } catch (err) {
     return out({ ok: false, error: String(err && err.message || err) });
@@ -105,6 +108,7 @@ function setup() {
   const def = ss.getSheetByName('Feuille 1') || ss.getSheetByName('Sheet1');
   if (def && ss.getSheets().length > 1) ss.deleteSheet(def);
   installTriggers();
+  if (!P.getProperty('ICS_SECRET')) P.setProperty('ICS_SECRET', Utilities.getUuid() + Utilities.getUuid());
   return {
     ok: true, sheet_url: ss.getUrl(), sheet_id: ss.getId(),
     triggers: ScriptApp.getProjectTriggers().map(t => t.getHandlerFunction()),
@@ -182,7 +186,8 @@ function list(p) {
     ok: true,
     now: stamp(),
     creneaux: all.filter(c => c.statut !== 'annulé' && String(c.date).slice(0, 10) >= lim).map(c => pub(c, email)),
-    moi: { visio: (el && el.visio) || '' },
+    moi: { visio: (el && el.visio) || '', ics_url: email ? icsUrl(email) : '' },
+    ecole: ecoleEvents().filter(ev => ev.date >= today()).slice(0, 8),
     stats: stats(all, email),
   };
 }
@@ -441,4 +446,89 @@ function mailRappelSeule(c) {
 
 function out(o) {
   return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
+}
+
+
+// ---------- agenda perso abonnable (29/09/2026) ----------
+// Chaque élève a un flux .ics à elle : ses pratiques (proposées ou réservées) + les rendez-vous de l'école
+// (Selfty Calls, pratiques du lundi, jalons) repris du flux public de selfty-agenda. Le lien est signé
+// (jeton HMAC sur l'e-mail) : personne ne peut deviner le flux d'une autre élève.
+const AGENDA_ICS_URL = 'https://selfty-academy.github.io/agenda/calls-selfty.ics';
+
+function icsSecret() {
+  let sct = P.getProperty('ICS_SECRET');
+  if (!sct) { sct = Utilities.getUuid() + Utilities.getUuid(); P.setProperty('ICS_SECRET', sct); }
+  return sct;
+}
+function icsToken(email) {
+  const sig = Utilities.computeHmacSha256Signature(email, icsSecret());
+  return Utilities.base64EncodeWebSafe(sig).replace(/=+$/, '').slice(0, 22);
+}
+function icsUrl(email) {
+  return ScriptApp.getService().getUrl() + '?key=' + KEY + '&what=ics&email=' + encodeURIComponent(email) + '&t=' + icsToken(email);
+}
+
+// Flux public de l'école, en cache 6 h
+function ecoleIcs() {
+  const cache = CacheService.getScriptCache();
+  const hit = cache.get('ecole_ics');
+  if (hit) return hit;
+  try {
+    const r = UrlFetchApp.fetch(AGENDA_ICS_URL, { muteHttpExceptions: true });
+    if (r.getResponseCode() === 200) { const t = r.getContentText(); cache.put('ecole_ics', t, 21600); return t; }
+  } catch (_) { }
+  return '';
+}
+// Événements de l'école en JSON (titre, date, heure, fin, journee)
+function ecoleEvents() {
+  const txt = ecoleIcs(); if (!txt) return [];
+  const evs = [];
+  const blocks = txt.replace(/\r\n[ \t]/g, '').split('BEGIN:VEVENT').slice(1);
+  blocks.forEach(b => {
+    const g = re => { const m = b.match(re); return m ? m[1].trim() : ''; };
+    const ds = g(/DTSTART[^:]*:(\S+)/), de = g(/DTEND[^:]*:(\S+)/), sum = g(/SUMMARY:(.*)/);
+    if (!ds || !sum) return;
+    const journee = /^\d{8}$/.test(ds);
+    const date = ds.slice(0, 4) + '-' + ds.slice(4, 6) + '-' + ds.slice(6, 8);
+    const hm = x => x && x.length >= 13 ? x.slice(9, 11) + ':' + x.slice(11, 13) : '';
+    evs.push({ titre: sum.replace(/\\,/g, ',').replace(/\;/g, ';'), date, heure: journee ? '' : hm(ds), fin: journee ? '' : hm(de), journee, statut: /STATUS:CANCELLED/.test(b) ? 'annulé' : '' });
+  });
+  return evs.filter(e => e.statut !== 'annulé').sort((a, b) => (a.date + a.heure).localeCompare(b.date + b.heure));
+}
+
+function icsFeed(q) {
+  const email = cleanEmail(q.email);
+  const bad = msg => ContentService.createTextOutput(msg).setMimeType(ContentService.MimeType.TEXT);
+  if (!email || String(q.t || '') !== icsToken(email)) return bad('Lien invalide. Rouvre la page Pratiques et clique sur « Connecter mon agenda ».');
+  const ss = book();
+  const all = rows(tab(ss, CR_TAB, CR_HDR), CR_KEYS).filter(c => c.statut !== 'annulé' && (cleanEmail(c.email) === email || cleanEmail(c.b_email) === email));
+  const e = s => String(s || '').replace(/\\/g, '\\\\').replace(/;/g, '\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+  const st = (d, h, plusMin) => { const dt = new Date(String(d).slice(0, 10) + 'T' + String(h).slice(0, 5) + ':00'); if (plusMin) dt.setMinutes(dt.getMinutes() + plusMin); return Utilities.formatDate(dt, TZ, "yyyyMMdd'T'HHmmss"); };
+  const now = Utilities.formatDate(new Date(), 'UTC', "yyyyMMdd'T'HHmmss'Z'");
+  const L = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Selfty Academy//Pratiques perso//FR', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
+    'X-WR-CALNAME:Selfty Academy · mes pratiques et mes calls', 'X-WR-TIMEZONE:Europe/Paris', 'REFRESH-INTERVAL;VALUE=DURATION:PT1H', 'X-PUBLISHED-TTL:PT1H',
+    'BEGIN:VTIMEZONE', 'TZID:Europe/Paris', 'BEGIN:DAYLIGHT', 'TZOFFSETFROM:+0100', 'TZOFFSETTO:+0200', 'TZNAME:CEST', 'DTSTART:19700329T020000', 'RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU', 'END:DAYLIGHT',
+    'BEGIN:STANDARD', 'TZOFFSETFROM:+0200', 'TZOFFSETTO:+0100', 'TZNAME:CET', 'DTSTART:19701025T030000', 'RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU', 'END:STANDARD', 'END:VTIMEZONE'];
+  all.forEach(c => {
+    const mine = cleanEmail(c.email) === email, full = c.statut === 'complet';
+    const partner = mine ? c.b_prenom : c.prenom;
+    const myRole = mine ? c.role : (c.b_role || (c.role === 'coach' ? 'coachee' : c.role === 'coachee' ? 'coach' : 'choix'));
+    const roleTxt = myRole === 'coach' ? 'Tu coaches' : myRole === 'coachee' ? 'Tu es coachée' : 'Rôle au choix';
+    const title = full ? 'Pratique Selfty avec ' + partner : 'Pratique Selfty (en attente d\'un binôme)';
+    const desc = [roleTxt, c.outil ? 'Outil : ' + c.outil : '', c.theme ? 'Thème : ' + c.theme : '', c.visio ? 'Visio : ' + c.visio : '', PAGE_URL].filter(Boolean).join('\n');
+    L.push('BEGIN:VEVENT', 'UID:' + c.id + '@selfty-academy.github.io', 'DTSTAMP:' + now,
+      'DTSTART;TZID=Europe/Paris:' + st(c.date, c.heure), 'DTEND;TZID=Europe/Paris:' + st(c.date, c.heure, Number(c.duree) || 60),
+      'SUMMARY:' + e(title), 'DESCRIPTION:' + e(desc), 'URL:' + PAGE_URL);
+    if (c.visio) L.push('LOCATION:' + e(c.visio));
+    if (full) L.push('BEGIN:VALARM', 'TRIGGER:-PT30M', 'ACTION:DISPLAY', 'DESCRIPTION:' + e(title), 'END:VALARM');
+    L.push('END:VEVENT');
+  });
+  // les rendez-vous de l'école, recopiés tels quels depuis le flux public
+  const pubIcs = ecoleIcs();
+  if (pubIcs) {
+    const m = pubIcs.match(/BEGIN:VEVENT[\s\S]*?END:VEVENT/g) || [];
+    m.forEach(b => L.push(b.replace(/\r?\n/g, '\r\n')));
+  }
+  L.push('END:VCALENDAR');
+  return ContentService.createTextOutput(L.join('\r\n')).setMimeType(ContentService.MimeType.ICAL);
 }
