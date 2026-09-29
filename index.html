@@ -246,6 +246,8 @@ body.embed .gate img{display:none}
 <div class="toast" id="toast"></div>
 
 <script>
+// Stockage local : si le navigateur bloque localStorage dans une iframe (cookies tiers bloqués), on garde tout en mémoire le temps de la visite au lieu de planter.
+let LS; try { LS = window.localStorage; LS.getItem('sp_test'); } catch (_) { const mem = {}; LS = { getItem: k => (k in mem ? mem[k] : null), setItem: (k, v) => { mem[k] = String(v); }, removeItem: k => { delete mem[k]; } }; }
 // ---------- config ----------
 const PONT = 'https://script.google.com/macros/s/AKfycbzimUVCum9OFHShtALVl_Iz64lv9ahpX3FqSif9zHr0AEb2RctBTCoXw6FHYAWrbqzrwA/exec';                       // URL /exec du pont Apps Script (remplie au déploiement)
 const KEY = 'pratiques-b65312ad3c23ea1fcf07fc92';
@@ -290,20 +292,20 @@ function ouvert() { return isAdmin() || TODAY() >= OUVERTURE; }
 
 // ---------- état ----------
 let S = { creneaux: [], ecole: [], ics_url: '' };
-let me = null; try { me = JSON.parse(localStorage.getItem('sp_me') || 'null'); } catch (_) { }
-let okCode = false; try { okCode = localStorage.getItem('sp_ok') === '1'; } catch (_) { }
+let me = null; try { me = JSON.parse(LS.getItem('sp_me') || 'null'); } catch (_) { }
+let okCode = false; try { okCode = LS.getItem('sp_ok') === '1'; } catch (_) { }
 // ?code=selfty2026 dans l'adresse (embed SchoolMaker) : l'élève est déjà connectée à l'école, on ne lui redemande rien
-if (!okCode && (Q.get('code') || '').trim().toLowerCase() === CODE) { okCode = true; try { localStorage.setItem('sp_ok', '1'); } catch (_) { } }
+if (!okCode && (Q.get('code') || '').trim().toLowerCase() === CODE) { okCode = true; try { LS.setItem('sp_ok', '1'); } catch (_) { } }
 // ?embed=1 : rendu compact pour une leçon SchoolMaker (pas de logo ni de titre en double)
 const EMBED = Q.get('embed') === '1';
 // ?prenom=…&email=… : identité préremplie (SchoolMaker ne les fournit pas encore, gardé pour plus tard)
 if (!me && Q.get('email')) { me = { prenom: (Q.get('prenom') || '').trim(), email: Q.get('email').trim().toLowerCase() };
-  if (me.prenom && me.email) { try { localStorage.setItem('sp_me', JSON.stringify(me)); } catch (_) { } } else { me = null; } }
+  if (me.prenom && me.email) { try { LS.setItem('sp_me', JSON.stringify(me)); } catch (_) { } } else { me = null; } }
 let tab = (location.hash || '').replace('#', '') || 'open';
-let view = 'month'; try { view = localStorage.getItem('sp_view') || 'month'; if (view === 'week') view = 'month'; } catch (_) { }
+let view = 'month'; try { view = LS.getItem('sp_view') || 'month'; if (view === 'week') view = 'month'; } catch (_) { }
 let filter = 'all';
 let filtreOutil = '';
-let profil = { visio: '' }; try { profil = JSON.parse(localStorage.getItem('sp_profil') || '{"visio":""}'); } catch (_) { }
+let profil = { visio: '' }; try { profil = JSON.parse(LS.getItem('sp_profil') || '{"visio":""}'); } catch (_) { }
 let weekOffset = 0;
 let monthOffset = 0;
 let selDay = null;
@@ -365,9 +367,9 @@ async function api(what, payload = {}) {
 
 // Mode local (page ouverte sans pont, ou ?local=1) : même logique que le pont, dans localStorage de ce navigateur
 function localApi(what, p) {
-  if (what === 'profil_set') { try { localStorage.setItem('sp_profil', JSON.stringify({ visio: p.visio || '' })); } catch (_) { } return { ok: true, visio: p.visio || '' }; }
-  let all = []; try { all = JSON.parse(localStorage.getItem('sp_local') || '[]'); } catch (_) { }
-  const save = () => localStorage.setItem('sp_local', JSON.stringify(all));
+  if (what === 'profil_set') { try { LS.setItem('sp_profil', JSON.stringify({ visio: p.visio || '' })); } catch (_) { } return { ok: true, visio: p.visio || '' }; }
+  let all = []; try { all = JSON.parse(LS.getItem('sp_local') || '[]'); } catch (_) { }
+  const save = () => LS.setItem('sp_local', JSON.stringify(all));
   const email = String(p.email || '').trim().toLowerCase();
   const stamp = new Date().toISOString();
   const pub = c => { const o = { ...c }; delete o.email; delete o.b_email; o.mine = !!email && c.email === email; o.booked_by_me = !!email && c.b_email === email; o.has_visio = !!c.visio; if (!o.mine && !o.booked_by_me) delete o.visio; return o; };
@@ -377,7 +379,7 @@ function localApi(what, p) {
     const mien = c => !!email && (c.email === email || c.b_email === email);
     const mesF = faites.filter(mien);
     const el = {}; faites.forEach(c => { [c.email, c.b_email].forEach(e => { if (e) el[e] = 1; }); });
-    let prof = { visio: '' }; try { prof = JSON.parse(localStorage.getItem('sp_profil') || '{"visio":""}'); } catch (_) { }
+    let prof = { visio: '' }; try { prof = JSON.parse(LS.getItem('sp_profil') || '{"visio":""}'); } catch (_) { }
     return { ok: true, creneaux: all.filter(c => c.statut !== 'annulé').map(pub), moi: prof,
       stats: { promo: { faites: faites.length, eleves: Object.keys(el).length }, outils: cnt(faites, c => c.outil),
                moi: { faites: mesF.length, minutes: mesF.reduce((n, c) => n + (Number(c.duree) || 60), 0), outils: cnt(mesF, c => c.outil) } } };
@@ -405,12 +407,12 @@ function localApi(what, p) {
 // Démo locale (?local=1&demo=1) : quelques créneaux d'autres élèves pour tester l'inscription
 function seedDemo() {
   if (!LOCAL || Q.get('demo') !== '1') return;
-  let all = []; try { all = JSON.parse(localStorage.getItem('sp_local') || '[]'); } catch (_) { }
+  let all = []; try { all = JSON.parse(LS.getItem('sp_local') || '[]'); } catch (_) { }
   if (all.length) return;
   const t = TODAY();
   const mk = (d, h, prenom, role, theme, dur, outil) => ({ id: 'demo' + d + h.replace(':', ''), created: '', date: addDays(t, d), heure: h, duree: dur || 60, prenom, email: prenom.toLowerCase() + '@exemple.fr', role, outil: outil || OUTILS_PLATS[(d + h.length) % OUTILS_PLATS.length], theme, visio: 'https://meet.google.com/abc-defg-hij', note: '', statut: 'ouvert', b_prenom: '', b_email: '', b_role: '' });
   all = [mk(1, '18:30', 'Camille', 'duo', '', 90), mk(2, '12:00', 'Léa', 'duo', '', 90), mk(4, '20:00', 'Inès', 'duo', '', 45), mk(6, '10:00', 'Manon', 'duo', '', 90)];
-  localStorage.setItem('sp_local', JSON.stringify(all));
+  LS.setItem('sp_local', JSON.stringify(all));
 }
 
 // Repli : si le pont ne renvoie pas les rendez-vous de l'école, la page lit elle-même le flux public de l'agenda
@@ -440,18 +442,18 @@ async function load(silent) {
   try {
     const j = await api('list', { email: me && me.email });
     if (seq !== loadSeq) return;   // une réponse plus récente est déjà arrivée (ou en route) : on ignore celle-ci
-    if (j.moi && j.moi.visio && j.moi.visio !== profil.visio) { profil.visio = j.moi.visio; try { localStorage.setItem('sp_profil', JSON.stringify(profil)); } catch (_) { } }
+    if (j.moi && j.moi.visio && j.moi.visio !== profil.visio) { profil.visio = j.moi.visio; try { LS.setItem('sp_profil', JSON.stringify(profil)); } catch (_) { } }
     S.stats = j.stats || null;
     S.ecole = j.ecole || [];
     if (!S.ecole.length) ecoleDirect();
     S.ics_url = (j.moi && j.moi.ics_url) || '';
     S.creneaux = (j.creneaux || []).map(norm).sort(sortSlot);
-    try { localStorage.setItem('sp_cache', JSON.stringify(S.creneaux)); } catch (_) { }
+    try { LS.setItem('sp_cache', JSON.stringify(S.creneaux)); } catch (_) { }
     if (LOCAL) setStatus('mode test local', 'local');
     else setStatus('en direct · ' + new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }));
   } catch (e) {
     if (seq !== loadSeq) return;
-    try { const c = localStorage.getItem('sp_cache'); if (c) S.creneaux = JSON.parse(c).map(norm); } catch (_) { }
+    try { const c = LS.getItem('sp_cache'); if (c) S.creneaux = JSON.parse(c).map(norm); } catch (_) { }
     setStatus('hors ligne · copie locale', 'err');
   }
   render();
@@ -470,7 +472,7 @@ function render() {
   if (!me) { app.innerHTML = renderIdentity(); return; }
   $('#moi').textContent = me.prenom;
   if (!ouvert()) { $('#nav').hidden = true; $('#aide').hidden = true; app.innerHTML = renderFerme(); return; }
-  if (!window._guideChecked && ouvert()) { window._guideChecked = true; let vu = false; try { vu = localStorage.getItem('sp_guide') === '1'; } catch (_) { } if (!vu) setTimeout(showGuide, 400); }
+  if (!window._guideChecked && ouvert()) { window._guideChecked = true; let vu = false; try { vu = LS.getItem('sp_guide') === '1'; } catch (_) { } if (!vu) setTimeout(showGuide, 400); }
   renderNav();
   let html = LOCAL ? '<div class="bandeau"><b>Mode test local :</b> les créneaux restent sur ce téléphone et aucun mail ne part.</div>' : '';
   if (tab === 'mine') html += renderMine();
@@ -491,7 +493,7 @@ function renderGate() {
   </div>`;
 }
 function checkCode() {
-  if ($('#code').value.trim().toLowerCase() === CODE) { okCode = true; try { localStorage.setItem('sp_ok', '1'); } catch (_) { } render(); }
+  if ($('#code').value.trim().toLowerCase() === CODE) { okCode = true; try { LS.setItem('sp_ok', '1'); } catch (_) { } render(); }
   else toast('Ce code ne correspond pas', true);
 }
 function renderFerme() {
@@ -542,16 +544,16 @@ function saveMe() {
   if (!vis) return toast('Colle ton lien de visio (Zoom ou Google Meet)', true);
   if (!/^https?:\/\/\S+\.\S+/i.test(vis)) return toast('Le lien visio doit commencer par https://', true);
   me = { prenom, email };
-  try { localStorage.setItem('sp_me', JSON.stringify(me)); } catch (_) { }
+  try { LS.setItem('sp_me', JSON.stringify(me)); } catch (_) { }
   if (vis !== (profil.visio || '')) {
     profil.visio = vis;
-    try { localStorage.setItem('sp_profil', JSON.stringify(profil)); } catch (_) { }
+    try { LS.setItem('sp_profil', JSON.stringify(profil)); } catch (_) { }
     api('profil_set', { prenom, email, visio: vis }).then(j => { if (j && j.ics_url) { S.ics_url = j.ics_url; } }).catch(() => { });
   }
   closeModal();
   render();   // l'écran suivant tout de suite, sans attendre le pont
   load();
-  let vu = false; try { vu = localStorage.getItem('sp_guide') === '1'; } catch (_) { }
+  let vu = false; try { vu = LS.getItem('sp_guide') === '1'; } catch (_) { }
   if (!vu && ouvert()) setTimeout(showGuide, 300);
 }
 function editMe() { openSheet(renderIdentity(true)); }
@@ -585,7 +587,7 @@ function showGuide(step) {
     </div>
   </div>`);
 }
-function endGuide() { try { localStorage.setItem('sp_guide', '1'); } catch (_) { } document.querySelectorAll('nav.nav button').forEach(b => b.classList.remove('pulse')); closeModal(); }
+function endGuide() { try { LS.setItem('sp_guide', '1'); } catch (_) { } document.querySelectorAll('nav.nav button').forEach(b => b.classList.remove('pulse')); closeModal(); }
 
 function renderNav() {
   const open = S.creneaux.filter(c => c.statut === 'ouvert' && !isPast(c) && !c.mine).length;
@@ -621,7 +623,7 @@ function outilsProposes() {
   S.creneaux.filter(c => !isPast(c) && c.statut !== 'annulé' && c.outil).forEach(c => { v[c.outil] = 1; });
   return Object.keys(v).sort((a, b) => a.localeCompare(b, 'fr'));
 }
-function setView(v) { view = v; try { localStorage.setItem('sp_view', v); } catch (_) { } render(); }
+function setView(v) { view = v; try { LS.setItem('sp_view', v); } catch (_) { } render(); }
 function setFilter(f) { filter = f; render(); }
 
 function slotCard(c) {
@@ -739,8 +741,8 @@ function pastCard(c) {
 // ---- raconter une pratique dans la Communauté SchoolMaker (= points de gamification) ----
 const COMMU_NEW = 'https://selftyacademy.schoolmaker.co/community/new?space_id=fadf4701-dfeb-4bf6-b8a9-49fea7387434';
 const COMMU_TARGET = EMBED ? '_top' : '_blank';
-function racontes() { try { return JSON.parse(localStorage.getItem('sp_raconte') || '{}'); } catch (_) { return {}; } }
-function raconte(id) { const r = racontes(); r[id] = 1; localStorage.setItem('sp_raconte', JSON.stringify(r)); setTimeout(render, 50); }
+function racontes() { try { return JSON.parse(LS.getItem('sp_raconte') || '{}'); } catch (_) { return {}; } }
+function raconte(id) { const r = racontes(); r[id] = 1; LS.setItem('sp_raconte', JSON.stringify(r)); setTimeout(render, 50); }
 function aRaconter(c) { return c.statut === 'complet' && isPast(c) && !racontes()[c.id] && (Date.now() - new Date(c.date + 'T00:00:00').getTime()) < 21 * 864e5; }
 function btnRaconter(c, ghost) { return `<a class="btn ${ghost ? 'ghost ' : ''}sm" href="${COMMU_NEW}" target="${COMMU_TARGET}" rel="noopener" onclick="raconte('${c.id}')">💬 Raconter dans la Communauté</a>`; }
 function carteRaconter(c) {
@@ -999,7 +1001,7 @@ function openSheet(html) { $('#sheet').innerHTML = html; $('#modal').classList.a
 function closeModal() { $('#modal').classList.remove('on'); }
 
 // ---------- démarrage ----------
-try { const c = localStorage.getItem('sp_cache'); if (c && !LOCAL) S.creneaux = JSON.parse(c).map(norm).sort(sortSlot); } catch (_) { }
+try { const c = LS.getItem('sp_cache'); if (c && !LOCAL) S.creneaux = JSON.parse(c).map(norm).sort(sortSlot); } catch (_) { }
 seedDemo();
 render();
 if (okCode && me) load(); else setStatus(LOCAL ? 'mode test local' : 'prêt', LOCAL ? 'local' : '');
