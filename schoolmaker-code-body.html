@@ -54,6 +54,16 @@
         var fr = document.getElementById('sm-pratiques-frame'), wait = document.getElementById('sm-pratiques-wait');
         fr.addEventListener('load', function () { if (wait) wait.remove(); });
         setTimeout(function () { if (wait && wait.parentNode) wait.remove(); }, 8000);
+        // hauteur = tout l'écran restant, moins la barre du bas de SchoolMaker sur mobile (sinon elle cache les onglets du tableau)
+        var fit = function () {
+          var f = document.getElementById('sm-pratiques-frame'); if (!f) return;
+          var barA = document.querySelector('a.w-full[href="/products"]');
+          var bar = barA ? barA.closest('nav') || barA.parentElement.parentElement : null;
+          var barH = (bar && bar.offsetParent !== null && getComputedStyle(bar).position === 'fixed') ? bar.getBoundingClientRect().height : 0;
+          var h = window.innerHeight - f.getBoundingClientRect().top - barH - 6;
+          f.style.height = Math.max(420, h) + 'px'; f.style.minHeight = '0';
+        };
+        fit(); setTimeout(fit, 300); window.addEventListener('resize', fit);
         document.title = 'Les pratiques - Selfty Academy';
       }
     }

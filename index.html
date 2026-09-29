@@ -456,7 +456,7 @@ function render() {
   if (!me) { app.innerHTML = renderIdentity(); return; }
   $('#moi').textContent = me.prenom;
   if (!ouvert()) { $('#nav').hidden = true; $('#aide').hidden = true; app.innerHTML = renderFerme(); return; }
-  if (!window._guideChecked) { window._guideChecked = true; let vu = false; try { vu = localStorage.getItem('sp_guide') === '1'; } catch (_) { } if (!vu) setTimeout(showGuide, 400); }
+  if (!window._guideChecked && ouvert()) { window._guideChecked = true; let vu = false; try { vu = localStorage.getItem('sp_guide') === '1'; } catch (_) { } if (!vu) setTimeout(showGuide, 400); }
   renderNav();
   let html = LOCAL ? '<div class="bandeau"><b>Mode test local :</b> les créneaux restent sur ce téléphone et aucun mail ne part.</div>' : '';
   if (tab === 'mine') html += renderMine();
@@ -535,9 +535,10 @@ function saveMe() {
     api('profil_set', { prenom, email, visio: vis }).then(j => { if (j && j.ics_url) { S.ics_url = j.ics_url; } }).catch(() => { });
   }
   closeModal();
+  render();   // l'écran suivant tout de suite, sans attendre le pont
   load();
   let vu = false; try { vu = localStorage.getItem('sp_guide') === '1'; } catch (_) { }
-  if (!vu) setTimeout(showGuide, 300);
+  if (!vu && ouvert()) setTimeout(showGuide, 300);
 }
 function editMe() { openSheet(renderIdentity(true)); }
 
@@ -556,7 +557,7 @@ function showGuide(step) {
   const last = guideStep === GUIDE.length - 1;
   document.querySelectorAll('nav.nav button').forEach(b => b.classList.toggle('pulse', !!navKey && b.dataset.k === navKey));
   const visuel = ic === 'video'
-    ? `<video class="gvid" src="assets/bienvenue.mp4" poster="assets/bienvenue.jpg" autoplay loop muted playsinline></video>`
+    ? `<video class="gvid" id="gvid" poster="assets/bienvenue.jpg" autoplay loop muted playsinline><source src="assets/bienvenue.mp4" type="video/mp4"><source src="assets/bienvenue.webm" type="video/webm"></video>`
     : `<div class="big">${ic}</div>`;
   openSheet(`<div class="guide">
     ${visuel}
@@ -569,6 +570,8 @@ function showGuide(step) {
       ${guideStep ? `<button class="btn ghost full" onclick="showGuide(${guideStep - 1})">Retour</button>` : `<button class="btn ghost full" onclick="endGuide()">Passer</button>`}
     </div>
   </div>`);
+  // si le navigateur ne lit aucune des deux vidéos, on montre l'image fixe (jamais un cadre vide)
+  setTimeout(() => { const v = $('#gvid'); if (v && (v.error || (v.readyState === 0 && v.networkState === 3))) { const img = document.createElement('img'); img.className = 'gvid'; img.src = 'assets/bienvenue.jpg'; img.alt = ''; v.replaceWith(img); } }, 1500);
 }
 function endGuide() { try { localStorage.setItem('sp_guide', '1'); } catch (_) { } document.querySelectorAll('nav.nav button').forEach(b => b.classList.remove('pulse')); closeModal(); }
 
