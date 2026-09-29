@@ -33,7 +33,7 @@ function autoriser() {
 const KEY = 'pratiques-b65312ad3c23ea1fcf07fc92';
 const P = PropertiesService.getScriptProperties();
 const TZ = 'Europe/Paris';
-const PAGE_URL = 'https://selfty-academy.github.io/pratiques/';
+const PAGE_URL = 'https://selftyacademy.schoolmaker.co/products?pratiques=1';   // le tableau vit dans l'école (menu « Les pratiques »)
 const MAIL_NAME = 'Selfty Academy · Pratiques';
 const SHEET_NAME = 'Pratiques Selfty';
 const RAPPEL_HEURE = 18;                 // rappel de la veille, vers 18h (heure de Paris)
@@ -52,7 +52,7 @@ const IN_TAB = 'Inscriptions';
 const IN_HDR = ['ID', 'Créneau', 'Date', 'Heure', 'Proposé par', 'Inscrite', 'E-mail inscrite', 'Rôle inscrite', 'Inscrite le', 'Désinscrite le'];
 
 const ROLES = ['coach', 'coachee', 'choix'];
-const DUREES = [30, 45, 60, 90];
+const DUREES = [45, 90];   // 1h30 = 45 min coachée + 45 min coach ; 45 min = une seule séance
 
 // ---------- entrées ----------
 function doGet(e) {
@@ -62,6 +62,18 @@ function doGet(e) {
     if (q.what === 'setup') return out(setup());
     if (q.what === 'list') return out(list({}));
     if (q.what === 'ics') return icsFeed(q);
+    if (q.what === 'timing') {
+      const t = {}, t0 = Date.now(); let last = t0; const lap = k => { const n = Date.now(); t[k] = n - last; last = n; };
+      const ss = book(); lap('book');
+      const all = rows(tab(ss, CR_TAB, CR_HDR), CR_KEYS); lap('rows_creneaux');
+      rows(tab(ss, EL_TAB, EL_HDR), EL_KEYS); lap('rows_eleves');
+      stats(all, 'x@x.fr'); lap('stats');
+      ecoleEvents(); lap('ecole');
+      icsToken('x@x.fr'); lap('token');
+      ScriptApp.getService().getUrl(); lap('geturl');
+      t.total = Date.now() - t0;
+      return out({ ok: true, ms: t, n: all.length });
+    }
     if (q.what === 'ecole_debug') { try { const r = UrlFetchApp.fetch(AGENDA_ICS_URL, { muteHttpExceptions: true }); return out({ ok: true, code: r.getResponseCode(), len: r.getContentText().length, n: ecoleEvents().length }); } catch (err) { return out({ ok: false, err: String(err) }); } }
     if (q.what === 'remind') return out({ ok: true, sent: rappelVeille() });
   } catch (err) {
@@ -209,13 +221,16 @@ function stats(all, email) {
     }
   });
   const tri = obj => Object.keys(obj).map(k => ({ outil: k, n: obj[k] })).sort((a, b) => b.n - a.n);
-  const eleves = {};
-  faites.forEach(c => { [c.email, c.b_email].forEach(e => { e = cleanEmail(e); if (e) eleves[e] = 1; });
-  });
+  // classement par nombre de pratiques (gamification, demande d'Anaïs du 29/09) : prénoms seulement, jamais d'e-mail
+  const parEleve = {};
+  faites.forEach(c => { [[c.email, c.prenom], [c.b_email, c.b_prenom]].forEach(([e, pr]) => { e = cleanEmail(e); if (!e) return; if (!parEleve[e]) parEleve[e] = { prenom: cleanName(pr) || '?', n: 0 }; parEleve[e].n++; }); });
+  const classement = Object.keys(parEleve).map(e => ({ prenom: parEleve[e].prenom, n: parEleve[e].n, moi: !!email && e === email })).sort((a, b) => b.n - a.n || a.prenom.localeCompare(b.prenom));
+  const rang = (email && parEleve[email]) ? classement.filter(x => x.n > parEleve[email].n).length + 1 : 0;
   return {
-    promo: { faites: faites.length, eleves: Object.keys(eleves).length },
+    promo: { faites: faites.length, eleves: classement.length },
     outils: tri(outils),
     moi: { faites: moiN, minutes: moiMin, outils: tri(mesOutils) },
+    classement: classement.slice(0, 20), rang: rang, total: classement.length,
   };
 }
 
@@ -269,8 +284,8 @@ function propose(p) {
   const date = String(p.date || '').slice(0, 10), heure = String(p.heure || '').slice(0, 5);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(heure)) return { ok: false, error: 'date ou heure invalide' };
   if (date < today() || (date === today() && heure <= nowHM())) return { ok: false, error: 'ce créneau est déjà passé' };
-  const duree = DUREES.includes(Number(p.duree)) ? Number(p.duree) : 60;
-  const role = ROLES.includes(p.role) ? p.role : 'choix';
+  const duree = DUREES.includes(Number(p.duree)) ? Number(p.duree) : 90;
+  const role = 'duo';   // plus de rôles depuis le 29/09/2026 : les deux coachent à tour de rôle
   const visio = String(p.visio || '').trim().slice(0, 300);
   if (visio && !/^https?:\/\//i.test(visio)) return { ok: false, error: 'le lien visio doit commencer par http' };
   return withLock(() => {
@@ -279,7 +294,7 @@ function propose(p) {
     if (dup) return { ok: false, error: 'tu as déjà proposé ce créneau' };
     const id = 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     const now = stamp();
-    const row = [id, now, date, heure, duree, prenom, email, role, String(p.theme || '').trim().slice(0, 120), visio,
+    const row = [id, now, date, heure, duree, prenom, email, role, '', visio,
       String(p.note || '').trim().slice(0, 500), 'ouvert', '', '', '', '', '', now, String(p.outil || '').trim().slice(0, 120)];
     sh.appendRow(row);
     sh.getRange(sh.getLastRow(), 1, 1, row.length).setNumberFormat('@');
@@ -299,11 +314,7 @@ function bookSlot(p) {
     if (c.statut === 'complet') return { ok: false, error: 'ce créneau vient d\'être pris' };
     if (isPast(c)) return { ok: false, error: 'ce créneau est déjà passé' };
     if (c.email === email) return { ok: false, error: 'c\'est ton propre créneau' };
-    let b_role = '';
-    if (c.role === 'coach') b_role = 'coachee';
-    else if (c.role === 'coachee') b_role = 'coach';
-    else if (p.role === 'coach' || p.role === 'coachee') b_role = p.role;
-    else return { ok: false, error: 'choisis ton rôle (je coache / je suis coachée)' };
+    const b_role = 'duo';
     const now = stamp();
     setCells(sh, c._row, { statut: 'complet', b_prenom: prenom, b_email: email, b_role: b_role, b_at: now });
     const ins = tab(ss, IN_TAB, IN_HDR);
@@ -376,11 +387,9 @@ function dateFr(iso) {
 }
 function heureFr(h) { return String(h).slice(0, 5).replace(':', 'h'); }
 function rolesTxt(c) {
-  // qui coache, qui est coachée
-  const pRole = c.b_role === 'coach' ? 'coachee' : (c.b_role === 'coachee' ? 'coach' : c.role);
-  if (pRole === 'coach') return c.prenom + ' coache, ' + c.b_prenom + ' est coachée.';
-  if (pRole === 'coachee') return c.b_prenom + ' coache, ' + c.prenom + ' est coachée.';
-  return 'Rôles au choix : décidez ensemble qui coache.';
+  // plus de rôles fixés : en 1h30, chacune coache 45 min
+  if (Number(c.duree) === 45) return '45 min : une seule séance, décidez ensemble qui coache (et inversez la prochaine fois).';
+  return '1h30 : 45 min où l\'une coache, puis vous échangez les rôles.';
 }
 function visioTxt(c) {
   if (c.visio) return 'Lien visio : ' + c.visio;
@@ -395,7 +404,7 @@ function mailConfirm(c) {
   const body = 'Hello ' + c.prenom + ' et ' + c.b_prenom + ',\n\n'
     + 'Votre séance de pratique est confirmée !\n\n'
     + '📅 ' + quand(c) + '\n'
-    + '👥 ' + rolesTxt(c) + '\n'
+    + '🔁 ' + rolesTxt(c) + '\n'
     + (c.theme ? '🎯 Thème : ' + c.theme + '\n' : '')
     + '🎥 ' + visioTxt(c) + '\n'
     + (c.note ? '\nNote de ' + c.prenom + ' : ' + c.note + '\n' : '')
@@ -427,7 +436,7 @@ function mailRappel(c) {
   const body = 'Hello ' + c.prenom + ' et ' + c.b_prenom + ',\n\n'
     + 'Petit rappel : votre séance de pratique a lieu demain.\n\n'
     + '📅 ' + quand(c) + '\n'
-    + '👥 ' + rolesTxt(c) + '\n'
+    + '🔁 ' + rolesTxt(c) + '\n'
     + (c.theme ? '🎯 Thème : ' + c.theme + '\n' : '')
     + '🎥 ' + visioTxt(c) + '\n'
     + '\nBonne pratique !'
@@ -473,10 +482,13 @@ function ecoleIcs() {
   const cache = CacheService.getScriptCache();
   const hit = cache.get('ecole_ics');
   if (hit) return hit;
+  // Tant que le scope external_request n'est pas autorisé, UrlFetchApp met ~35 s à refuser : on n'essaie qu'une fois par quart d'heure.
+  if (cache.get('ecole_fail')) return '';
   try {
     const r = UrlFetchApp.fetch(AGENDA_ICS_URL, { muteHttpExceptions: true });
     if (r.getResponseCode() === 200) { const t = r.getContentText(); cache.put('ecole_ics', t, 21600); return t; }
   } catch (_) { }
+  cache.put('ecole_fail', '1', 900);
   return '';
 }
 // Événements de l'école en JSON (titre, date, heure, fin, journee)
@@ -512,10 +524,8 @@ function icsFeed(q) {
   all.forEach(c => {
     const mine = cleanEmail(c.email) === email, full = c.statut === 'complet';
     const partner = mine ? c.b_prenom : c.prenom;
-    const myRole = mine ? c.role : (c.b_role || (c.role === 'coach' ? 'coachee' : c.role === 'coachee' ? 'coach' : 'choix'));
-    const roleTxt = myRole === 'coach' ? 'Tu coaches' : myRole === 'coachee' ? 'Tu es coachée' : 'Rôle au choix';
     const title = full ? 'Pratique Selfty avec ' + partner : 'Pratique Selfty (en attente d\'un binôme)';
-    const desc = [roleTxt, c.outil ? 'Outil : ' + c.outil : '', c.theme ? 'Thème : ' + c.theme : '', c.visio ? 'Visio : ' + c.visio : '', PAGE_URL].filter(Boolean).join('\n');
+    const desc = [rolesTxt(c), c.outil ? 'Outil : ' + c.outil : '', c.visio ? 'Visio : ' + c.visio : '', PAGE_URL].filter(Boolean).join('\n');
     L.push('BEGIN:VEVENT', 'UID:' + c.id + '@selfty-academy.github.io', 'DTSTAMP:' + now,
       'DTSTART;TZID=Europe/Paris:' + st(c.date, c.heure), 'DTEND;TZID=Europe/Paris:' + st(c.date, c.heure, Number(c.duree) || 60),
       'SUMMARY:' + e(title), 'DESCRIPTION:' + e(desc), 'URL:' + PAGE_URL);
