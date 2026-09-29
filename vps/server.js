@@ -106,7 +106,7 @@ function listFor(email) {
     ok: true, now: stamp(), source: 'vps', age: Math.round((Date.now() - state.fetchedAt) / 1000),
     creneaux: all.filter(c => c.statut !== 'annulé' && c.date >= lim).map(c => pub(c, email)),
     moi: { visio: (el && el.visio) || '', ics_url: email ? icsUrlFor(email) : '' },
-    ecole: ecoleEvents().slice(0, 8),
+    ecole: ecoleEvents(),   // tous les rendez-vous de l'école à venir : le calendrier du mois les affiche
     stats: stats(all, email),
   };
 }
@@ -301,7 +301,8 @@ http.createServer(async (req, res) => {
       if (!c) { res.writeHead(502, { 'Content-Type': 'text/plain; charset=utf-8' }); return res.end('Le pont ne répond pas, réessaie dans quelques minutes.'); }
       perso = c.txt;
     } else feedCache.set(ck, { t: Date.now(), txt: perso });
-    const out = merge(perso, await ecole());
+    // 30/09 (Anaïs) : le flux perso ne contient QUE les pratiques de l'élève ; les Selfty Calls sont déjà dans l'agenda Selfty du mail de bienvenue
+    const out = perso;
     res.writeHead(200, { 'Content-Type': 'text/calendar; charset=utf-8', 'Cache-Control': 'max-age=300', 'Content-Disposition': 'inline; filename="selfty-pratiques.ics"' });
     return res.end(out);
   }
