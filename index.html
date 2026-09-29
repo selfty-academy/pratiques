@@ -187,7 +187,7 @@ nav.nav .bdg{position:absolute;top:0;right:calc(50% - 30px);background:var(--mau
 /* guide + agenda (29/09/2026) */
 .steps{margin:6px 0 10px;padding-left:20px;font-size:13.5px;color:var(--ink-soft);line-height:1.5}
 .steps li{margin:3px 0}
-.gvid{width:100%;max-width:300px;border-radius:14px;margin:0 auto 10px;display:block;background:var(--rose)}
+.gvid{width:100%;max-width:300px;height:auto;border-radius:14px;margin:0 auto 10px;display:block;background:var(--rose)}
 .fleche{font-size:13px;color:var(--mauve-deep);margin:-6px 0 10px;font-weight:500}
 nav.nav button.pulse{animation:pulse 1s ease-in-out infinite;background:var(--rose);color:var(--mauve-deep)}
 @keyframes pulse{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
@@ -557,7 +557,7 @@ function showGuide(step) {
   const last = guideStep === GUIDE.length - 1;
   document.querySelectorAll('nav.nav button').forEach(b => b.classList.toggle('pulse', !!navKey && b.dataset.k === navKey));
   const visuel = ic === 'video'
-    ? `<video class="gvid" id="gvid" poster="assets/bienvenue.jpg" autoplay loop muted playsinline><source src="assets/bienvenue.mp4" type="video/mp4"><source src="assets/bienvenue.webm" type="video/webm"></video>`
+    ? `<img class="gvid" src="assets/bienvenue.gif" alt="" width="300" height="226">`
     : `<div class="big">${ic}</div>`;
   openSheet(`<div class="guide">
     ${visuel}
@@ -570,8 +570,6 @@ function showGuide(step) {
       ${guideStep ? `<button class="btn ghost full" onclick="showGuide(${guideStep - 1})">Retour</button>` : `<button class="btn ghost full" onclick="endGuide()">Passer</button>`}
     </div>
   </div>`);
-  // si le navigateur ne lit aucune des deux vidéos, on montre l'image fixe (jamais un cadre vide)
-  setTimeout(() => { const v = $('#gvid'); if (v && (v.error || (v.readyState === 0 && v.networkState === 3))) { const img = document.createElement('img'); img.className = 'gvid'; img.src = 'assets/bienvenue.jpg'; img.alt = ''; v.replaceWith(img); } }, 1500);
 }
 function endGuide() { try { localStorage.setItem('sp_guide', '1'); } catch (_) { } document.querySelectorAll('nav.nav button').forEach(b => b.classList.remove('pulse')); closeModal(); }
 
