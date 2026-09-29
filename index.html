@@ -657,7 +657,7 @@ function renderWeek() {
     html += slots.length ? slots.map(c => isPast(c) ? pastCard(c) : slotCard(c)).join('') : `<div class="vide">Rien ce jour-là.<div class="act" style="justify-content:center"><button class="btn sm" onclick="newAt('${day}')">Proposer un créneau le ${fmtDate(day, { day: 'numeric', month: 'long' })}</button></div></div>`;
   } else {
     const wk = S.creneaux.filter(c => days.includes(c.date) && c.statut !== 'annulé' && !isPast(c) && matchFilter(c)).sort(sortSlot);
-    if (!wk.length) html += `<div class="vide">Aucune pratique prévue cette semaine pour l'instant.<div class="act" style="justify-content:center"><button class="btn sm" onclick="go('new')">Proposer un créneau</button></div></div>`;
+    if (!wk.length) html += `<div class="vide"><div class="big">🌱</div>Aucune pratique cette semaine pour l'instant.<br>Sois la première à proposer un créneau, les autres suivront.<div class="act" style="justify-content:center"><button class="btn sm" onclick="go('new')">Proposer un créneau</button></div></div>`;
     else { let d0 = ''; wk.forEach(c => { if (c.date !== d0) { d0 = c.date; html += `<div class="jour">${cap(dayLabel(d0))}</div>`; } html += slotCard(c); }); }
     html += '<p class="mini" style="text-align:center">Touche un jour pour ne voir que lui.</p>';
   }
@@ -676,7 +676,7 @@ function renderMine() {
   const up = mine.filter(c => !isPast(c)), past = mine.filter(c => isPast(c)).reverse();
   let html = `<h2>Mes pratiques</h2>`;
   html += `<div class="card agenda"><div class="qui">📆 Ton agenda</div><div class="note">Tes pratiques et les Selfty Calls dans ton téléphone, mis à jour tout seuls.</div><div class="act"><button class="btn sm" onclick="connectAgenda()">Connecter mon agenda</button></div></div>`;
-  if (!up.length) html += `<div class="vide"><div class="big">🤝</div>Rien de prévu pour l'instant.<br>Inscris-toi sur un créneau ouvert ou propose le tien.<div class="act" style="justify-content:center"><button class="btn ghost sm" onclick="go('open')">Voir les créneaux</button><button class="btn sm" onclick="go('new')">Proposer</button></div></div>`;
+  if (!up.length) html += `<div class="vide"><div class="big">🤝</div>Aucune pratique prévue pour l'instant.<br>Choisis un créneau dans l'onglet Créneaux, ou propose le tien : c'est parti pour ta première pratique.<div class="act" style="justify-content:center"><button class="btn ghost sm" onclick="go('open')">Voir les créneaux</button><button class="btn sm" onclick="go('new')">Proposer</button></div></div>`;
   else up.forEach(c => { html += mineCard(c); });
   if (past.length) { html += `<div class="sec">Passées</div>`; past.slice(0, 10).forEach(c => { html += pastCard(c); }); }
   if (S.ecole && S.ecole.length) {
@@ -769,7 +769,7 @@ function renderNew() {
   <div class="card">
     <div class="grid2">
       <div><label class="f">Date</label><input class="inp" type="date" id="f-date" min="${TODAY()}" value="${esc(d)}"></div>
-      <div><label class="f">Heure</label><input class="inp" type="time" id="f-heure" step="300" value="${esc(draft.heure || '')}"></div>
+      <div><label class="f">Heure <small>(heure de Paris)</small></label><input class="inp" type="time" id="f-heure" step="300" value="${esc(draft.heure || '')}"></div>
     </div>
     <label class="f">Durée</label>
     <div class="quick" id="f-duree">${DUREES.map(n => `<button data-v="${n}" class="${draft.duree === n ? 'on' : ''}" onclick="draft.duree=${n};bindQuick('f-duree',${n})">${durFr(n)}${n === 90 ? ' <small>· 45 min chacune</small>' : ''}</button>`).join('')}</div>

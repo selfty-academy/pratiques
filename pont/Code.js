@@ -413,7 +413,12 @@ function mailConfirm(c) {
     + (c.note ? '\nNote de ' + c.prenom + ' : ' + c.note + '\n' : '')
     + '\nVous recevrez un rappel la veille vers 18h. Pour te désinscrire ou annuler : ' + PAGE_URL
     + signature();
-  MailApp.sendEmail({ to: c.email + ',' + c.b_email, name: MAIL_NAME, subject: subject, body: body });
+  mailDuo(c, subject, body);
+}
+// Un mail à chacune, avec « répondre » adressé à l'autre (la signature promet « réponds à ce mail pour écrire à ton binôme »)
+function mailDuo(c, subject, body) {
+  MailApp.sendEmail({ to: c.email, replyTo: c.b_email, name: MAIL_NAME, subject: subject, body: body });
+  MailApp.sendEmail({ to: c.b_email, replyTo: c.email, name: MAIL_NAME, subject: subject, body: body });
 }
 
 function mailUnbook(c) {
@@ -444,7 +449,7 @@ function mailRappel(c) {
     + '🎥 ' + visioTxt(c) + '\n'
     + '\nBonne pratique !'
     + signature();
-  MailApp.sendEmail({ to: c.email + ',' + c.b_email, name: MAIL_NAME, subject: subject, body: body });
+  mailDuo(c, subject, body);
 }
 
 function mailRappelSeule(c) {
