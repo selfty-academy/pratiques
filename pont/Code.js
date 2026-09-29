@@ -51,7 +51,7 @@ const IN_TAB = 'Inscriptions';
 const IN_HDR = ['ID', 'Créneau', 'Date', 'Heure', 'Proposé par', 'Inscrite', 'E-mail inscrite', 'Rôle inscrite', 'Inscrite le', 'Désinscrite le'];
 
 const ROLES = ['coach', 'coachee', 'choix'];
-const DUREES = [30, 45, 60];
+const DUREES = [30, 45, 60, 90];
 
 // ---------- entrées ----------
 function doGet(e) {
@@ -81,6 +81,10 @@ function doPost(e) {
     if (p.what === 'profil_set') return out(profilSet(p));
     if (p.what === 'remind') return out({ ok: true, sent: rappelVeille() });
     if (p.what === 'mail_test') {
+      // la clé KEY est publique (dans la page) : le test de mail exige en plus la propriété de script ADMIN_KEY (p.akey),
+      // sinon n'importe qui pourrait envoyer des mails depuis selfty.academy et vider le quota Gmail
+      const ak = P.getProperty('ADMIN_KEY');
+      if (!ak || String(p.akey || '') !== ak) return out({ ok: false, error: 'bad akey (propriété de script ADMIN_KEY)' });
       const to = cleanEmail(p.to);
       if (!to) return out({ ok: false, error: 'e-mail manquant' });
       MailApp.sendEmail({ to: to, name: MAIL_NAME, subject: 'Test : Pratiques Selfty', body: 'Le pont des pratiques fonctionne.\n' + PAGE_URL });
@@ -377,7 +381,8 @@ function visioTxt(c) {
   if (c.visio) return 'Lien visio : ' + c.visio;
   return 'Pas de lien visio renseigné : mettez-vous d\'accord entre vous, ou créez-en un ici : https://meet.google.com/new';
 }
-function quand(c) { return dateFr(c.date) + ' à ' + heureFr(c.heure) + ' (' + (Number(c.duree) || 60) + ' min)'; }
+function durFr(n) { n = Number(n) || 60; return n >= 60 ? Math.floor(n / 60) + 'h' + (n % 60 ? String(n % 60).padStart(2, '0') : '') : n + ' min'; }
+function quand(c) { return dateFr(c.date) + ' à ' + heureFr(c.heure) + ' (' + durFr(c.duree) + ')'; }
 function signature() { return '\n\nSelfty Academy\n' + PAGE_URL + '\n\n(message automatique de l\'agenda des pratiques ; réponds à ce mail pour écrire à ton binôme)'; }
 
 function mailConfirm(c) {

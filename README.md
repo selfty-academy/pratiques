@@ -43,7 +43,10 @@ Si l'URL n'affiche pas l'écran d'autorisation : `cd pont && clasp open-script -
 
 Test en ligne de commande (jamais `-X POST` : la redirection 302 casse) :
 ```
-curl -s -L -d '{"key":"<KEY>","what":"mail_test","to":"toi@exemple.fr"}' "https://script.google.com/macros/s/AKfycbzimUVCum9OFHShtALVl_Iz64lv9ahpX3FqSif9zHr0AEb2RctBTCoXw6FHYAWrbqzrwA/exec"
+curl -s -L -d '{"key":"<KEY>","akey":"<ADMIN_KEY>","what":"mail_test","to":"toi@exemple.fr"}' "https://script.google.com/macros/s/AKfycbzimUVCum9OFHShtALVl_Iz64lv9ahpX3FqSif9zHr0AEb2RctBTCoXw6FHYAWrbqzrwA/exec"
+```
+`<ADMIN_KEY>` = propriété de script `ADMIN_KEY` à poser une fois dans l'éditeur Apps Script (Paramètres du projet > Propriétés du script) : la clé `KEY` est publique (dans la page), elle ne suffit plus pour `mail_test`.
+```
 ```
 
 ## Modifier le pont

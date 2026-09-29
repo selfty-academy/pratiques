@@ -216,7 +216,8 @@ const PAGE_URL = 'https://selfty-academy.github.io/pratiques/';
 const CODE = 'selfty2026';                     // code d'accès de l'école (comparé en minuscules)
 const Q = new URLSearchParams(location.search);
 const LOCAL = !PONT || PONT.startsWith('__') || Q.get('local') === '1';   // mode test : tout reste sur ce téléphone
-const DUREES = [30, 45, 60];
+const DUREES = [30, 45, 60, 90];
+function durFr(n) { n = Number(n) || 60; return n >= 60 ? Math.floor(n / 60) + 'h' + (n % 60 ? String(n % 60).padStart(2, '0') : '') : n + ' min'; }
 const ROLE_TXT = { coach: 'je coache', coachee: 'je suis coachée', choix: 'au choix' };
 // Les outils du programme, repris du PDF officiel « Programme Selfty Academy » (à faire valider par Anaïs).
 // Les PDF de lecture ne sont pas dans la liste : on ne pratique que ce qui se pratique à deux.
@@ -254,7 +255,7 @@ let filtreOutil = '';
 let profil = { visio: '' }; try { profil = JSON.parse(localStorage.getItem('sp_profil') || '{"visio":""}'); } catch (_) { }
 let weekOffset = 0;
 let selDay = null;
-let draft = { duree: 60, role: 'choix' };
+let draft = { duree: 90, role: 'choix' };
 let busy = false;
 
 // ---------- utils ----------
@@ -495,7 +496,7 @@ function slotCard(c) {
   else { action = `<button class="btn sm" onclick="bookFlow('${c.id}')">Je m'inscris</button><button class="btn ghost sm" onclick="showSlot('${c.id}')">Détails</button>`; }
   return `<div class="card ${full && !c.mine && !c.booked_by_me ? 'done' : ''}">
     <div class="slot">
-      <div class="h"><b>${hFr(c.heure)}</b><small>${c.duree} min</small></div>
+      <div class="h"><b>${hFr(c.heure)}</b><small>${durFr(c.duree)}</small></div>
       <div class="b">
         <div class="qui">${esc(c.prenom)} <span>propose</span></div>
         ${c.outil ? `<div class="theme">🧰 ${esc(c.outil)}</div>` : ''}
@@ -540,7 +541,7 @@ function week(n) { weekOffset = n === 0 ? 0 : weekOffset + n; render(); }
 function selectDay(d) { selDay = selDay === d ? null : d; render(); }
 function newAt(d) { draft.date = d; go('new'); }
 function pastCard(c) {
-  return `<div class="card done"><div class="slot"><div class="h"><b>${hFr(c.heure)}</b><small>${c.duree} min</small></div><div class="b"><div class="qui">${esc(c.prenom)}${c.b_prenom ? ' + ' + esc(c.b_prenom) : ''}</div>${c.outil ? `<div class="theme">🧰 ${esc(c.outil)}</div>` : ''}${c.theme ? `<div class="theme">${esc(c.theme)}</div>` : ''}<div class="chips"><span class="chip past">passé</span></div></div></div></div>`;
+  return `<div class="card done"><div class="slot"><div class="h"><b>${hFr(c.heure)}</b><small>${durFr(c.duree)}</small></div><div class="b"><div class="qui">${esc(c.prenom)}${c.b_prenom ? ' + ' + esc(c.b_prenom) : ''}</div>${c.outil ? `<div class="theme">🧰 ${esc(c.outil)}</div>` : ''}${c.theme ? `<div class="theme">${esc(c.theme)}</div>` : ''}<div class="chips"><span class="chip past">passé</span></div></div></div></div>`;
 }
 
 // ---- mes pratiques ----
@@ -566,7 +567,7 @@ function mineCard(c) {
   act += c.mine ? `<button class="btn danger sm" onclick="cancelFlow('${c.id}')">Annuler le créneau</button>` : `<button class="btn danger sm" onclick="unbookFlow('${c.id}')">Me désinscrire</button>`;
   return `<div class="card">
     <div class="slot">
-      <div class="h"><b>${hFr(c.heure)}</b><small>${c.duree} min</small></div>
+      <div class="h"><b>${hFr(c.heure)}</b><small>${durFr(c.duree)}</small></div>
       <div class="b">
         <div class="qui">${cap(dayLabel(c.date))}</div>
         ${c.outil ? `<div class="theme">🧰 ${esc(c.outil)}</div>` : ''}
@@ -615,7 +616,7 @@ function renderNew() {
       <div><label class="f">Heure</label><input class="inp" type="time" id="f-heure" step="300" value="${esc(draft.heure || '')}"></div>
     </div>
     <label class="f">Durée</label>
-    <div class="quick" id="f-duree">${DUREES.map(n => `<button class="${draft.duree === n ? 'on' : ''}" onclick="draft.duree=${n};bindQuick('f-duree',${n})">${n} min</button>`).join('')}</div>
+    <div class="quick" id="f-duree">${DUREES.map(n => `<button class="${draft.duree === n ? 'on' : ''}" onclick="draft.duree=${n};bindQuick('f-duree',${n})">${durFr(n)}</button>`).join('')}</div>
     <label class="f">Ton rôle</label>
     <div class="quick" id="f-role">${Object.entries(ROLE_TXT).map(([k, l]) => `<button class="${draft.role === k ? 'on' : ''}" data-v="${k}" onclick="draft.role='${k}';bindQuick('f-role','${k}')">${l}</button>`).join('')}</div>
     <div class="hint">« Au choix » : celle qui s'inscrit choisit son rôle.</div>
@@ -652,7 +653,7 @@ async function submitNew() {
     const sel = $('#f-outil') ? $('#f-outil').value : '';
     const outil = sel === '__autre' ? ($('#f-theme').value.trim().slice(0, 120) || 'Autre') : sel;
     await api('propose', { prenom: me.prenom, email: me.email, date, heure, duree: draft.duree, role: draft.role, outil, theme: $('#f-theme').value.trim(), visio, note: $('#f-note').value.trim() });
-    draft = { duree: 60, role: 'choix' };
+    draft = { duree: 90, role: 'choix' };
     toast('Créneau proposé ! Il est visible par les autres élèves.');
     tab = 'mine'; history.replaceState(null, '', '#mine');
     await load(true);
@@ -663,7 +664,7 @@ async function submitNew() {
 // ---------- détails / actions ----------
 function recap(c) {
   return `<div class="recap">
-    <div><b>Quand</b><span>${cap(dayLabel(c.date))} à ${hFr(c.heure)} · ${c.duree} min</span></div>
+    <div><b>Quand</b><span>${cap(dayLabel(c.date))} à ${hFr(c.heure)} · ${durFr(c.duree)}</span></div>
     <div><b>Proposé par</b><span>${esc(c.prenom)}${c.mine ? ' (toi)' : ''}</span></div>
     ${c.b_prenom ? `<div><b>Binôme</b><span>${esc(c.b_prenom)}${c.booked_by_me ? ' (toi)' : ''}</span></div>` : ''}
     <div><b>Rôles</b><span>${c.statut === 'complet' && c.b_role ? (c.b_role === 'coach' ? `${esc(c.b_prenom)} coache, ${esc(c.prenom)} est coachée` : `${esc(c.prenom)} coache, ${esc(c.b_prenom)} est coachée`) : (c.role === 'coach' ? `${esc(c.prenom)} coache` : c.role === 'coachee' ? `${esc(c.prenom)} est coachée` : 'au choix')}</span></div>
@@ -739,7 +740,7 @@ function addCal(id) {
   const c = byId(id); if (!c) return;
   const { start, end, title, desc } = calInfo(c);
   const g = 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + encodeURIComponent(title) + '&dates=' + icsStamp(start) + '/' + icsStamp(end) + '&ctz=Europe/Paris&details=' + encodeURIComponent(desc) + (c.visio ? '&location=' + encodeURIComponent(c.visio) : '');
-  openSheet(`<h3>Ajouter à mon agenda</h3><div class="quand">${cap(dayLabel(c.date))} à ${hFr(c.heure)} · ${c.duree} min</div>
+  openSheet(`<h3>Ajouter à mon agenda</h3><div class="quand">${cap(dayLabel(c.date))} à ${hFr(c.heure)} · ${durFr(c.duree)}</div>
     <div class="act" style="flex-direction:column"><a class="btn full" href="${g}" target="_blank" rel="noopener">Google Agenda</a><button class="btn ghost full" onclick="downloadIcs('${c.id}')">Fichier .ics (iPhone, Outlook, Apple Calendar)</button><button class="btn ghost full" onclick="closeModal()">Fermer</button></div>`);
 }
 function downloadIcs(id) {
