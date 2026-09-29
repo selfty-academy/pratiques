@@ -26,7 +26,6 @@ function autoriser() {
   tab(ss, EL_TAB, EL_HDR);
   ScriptApp.getProjectTriggers();
   MailApp.getRemainingDailyQuota();
-  UrlFetchApp.fetch(AGENDA_ICS_URL, { muteHttpExceptions: true });   // scope external_request (agenda de l'école)
   Logger.log('OK ' + ss.getUrl());
 }
 
@@ -68,13 +67,11 @@ function doGet(e) {
       const all = rows(tab(ss, CR_TAB, CR_HDR), CR_KEYS); lap('rows_creneaux');
       rows(tab(ss, EL_TAB, EL_HDR), EL_KEYS); lap('rows_eleves');
       stats(all, 'x@x.fr'); lap('stats');
-      ecoleEvents(); lap('ecole');
       icsToken('x@x.fr'); lap('token');
       ScriptApp.getService().getUrl(); lap('geturl');
       t.total = Date.now() - t0;
       return out({ ok: true, ms: t, n: all.length });
     }
-    if (q.what === 'ecole_debug') { try { const r = UrlFetchApp.fetch(AGENDA_ICS_URL, { muteHttpExceptions: true }); return out({ ok: true, code: r.getResponseCode(), len: r.getContentText().length, n: ecoleEvents().length }); } catch (err) { return out({ ok: false, err: String(err) }); } }
     if (q.what === 'remind') return out({ ok: true, sent: rappelVeille() });
   } catch (err) {
     return out({ ok: false, error: String(err && err.message || err) });
@@ -94,6 +91,7 @@ function doPost(e) {
     if (p.what === 'unbook') return out(unbook(p));
     if (p.what === 'cancel') return out(cancel(p));
     if (p.what === 'profil_set') return out(profilSet(p));
+    if (p.what === 'list_full') return out(listFull(p));
     if (p.what === 'remind') return out({ ok: true, sent: rappelVeille() });
     if (p.what === 'mail_test') {
       // la clé KEY est publique (dans la page) : le test de mail exige en plus la propriété de script ADMIN_KEY (p.akey),
@@ -199,7 +197,7 @@ function list(p) {
     now: stamp(),
     creneaux: all.filter(c => c.statut !== 'annulé' && String(c.date).slice(0, 10) >= lim).map(c => pub(c, email)),
     moi: { visio: (el && el.visio) || '', ics_url: email ? icsUrl(email) : '' },
-    ecole: ecoleEvents().filter(ev => ev.date >= today()).slice(0, 8),
+    ecole: [],   // les rendez-vous de l'école sont lus par le VPS et par la page (flux public), plus par le pont
     stats: stats(all, email),
   };
 }
@@ -245,7 +243,7 @@ function profilSet(p) {
     const e = rows(sh, EL_KEYS).find(x => cleanEmail(x.email) === email);
     if (e) sh.getRange(e._row, 1, 1, EL_HDR.length).setNumberFormat('@').setValues([[email, prenom || e.prenom, visio, stamp()]]);
     else { sh.appendRow([email, prenom, visio, stamp()]); sh.getRange(sh.getLastRow(), 1, 1, EL_HDR.length).setNumberFormat('@'); }
-    return { ok: true, visio: visio };
+    return { ok: true, visio: visio, token: icsToken(email), ics_url: icsUrl(email) };
   });
 }
 
@@ -290,9 +288,12 @@ function propose(p) {
   if (visio && !/^https?:\/\//i.test(visio)) return { ok: false, error: 'le lien visio doit commencer par http' };
   return withLock(() => {
     const sh = tab(book(), CR_TAB, CR_HDR);
-    const dup = rows(sh, CR_KEYS).some(c => c.email === email && c.statut !== 'annulé' && String(c.date).slice(0, 10) === date && String(c.heure).slice(0, 5) === heure);
+    const all = rows(sh, CR_KEYS);
+    const wanted = /^p[a-z0-9]{6,24}$/.test(String(p.id || '')) ? String(p.id) : '';
+    if (wanted && all.some(c => c.id === wanted)) return { ok: true, id: wanted, deja: true };   // rejoué par le VPS : déjà écrit
+    const dup = all.some(c => c.email === email && c.statut !== 'annulé' && String(c.date).slice(0, 10) === date && String(c.heure).slice(0, 5) === heure);
     if (dup) return { ok: false, error: 'tu as déjà proposé ce créneau' };
-    const id = 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    const id = wanted || ('p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6));
     const now = stamp();
     const row = [id, now, date, heure, duree, prenom, email, role, '', visio,
       String(p.note || '').trim().slice(0, 500), 'ouvert', '', '', '', '', '', now, String(p.outil || '').trim().slice(0, 120)];
@@ -311,6 +312,7 @@ function bookSlot(p) {
     const c = findSlot(sh, p.id);
     if (!c) return { ok: false, error: 'créneau introuvable' };
     if (c.statut === 'annulé') return { ok: false, error: 'ce créneau a été annulé' };
+    if (c.statut === 'complet' && c.b_email === email) return { ok: true, mail: false, deja: true };
     if (c.statut === 'complet') return { ok: false, error: 'ce créneau vient d\'être pris' };
     if (isPast(c)) return { ok: false, error: 'ce créneau est déjà passé' };
     if (c.email === email) return { ok: false, error: 'c\'est ton propre créneau' };
@@ -335,6 +337,7 @@ function unbook(p) {
     const sh = tab(ss, CR_TAB, CR_HDR);
     const c = findSlot(sh, p.id);
     if (!c) return { ok: false, error: 'créneau introuvable' };
+    if (c.statut === 'ouvert' && !c.b_email) return { ok: true, deja: true };
     if (c.statut !== 'complet' || c.b_email !== email) return { ok: false, error: 'tu n\'es pas inscrite sur ce créneau' };
     setCells(sh, c._row, { statut: 'ouvert', b_prenom: '', b_email: '', b_role: '', b_at: '', rappel: '' });
     const ins = tab(ss, IN_TAB, IN_HDR);
@@ -480,19 +483,7 @@ function icsUrl(email) {
 }
 
 // Flux public de l'école, en cache 6 h
-function ecoleIcs() {
-  const cache = CacheService.getScriptCache();
-  const hit = cache.get('ecole_ics');
-  if (hit) return hit;
-  // Tant que le scope external_request n'est pas autorisé, UrlFetchApp met ~35 s à refuser : on n'essaie qu'une fois par quart d'heure.
-  if (cache.get('ecole_fail')) return '';
-  try {
-    const r = UrlFetchApp.fetch(AGENDA_ICS_URL, { muteHttpExceptions: true });
-    if (r.getResponseCode() === 200) { const t = r.getContentText(); cache.put('ecole_ics', t, 21600); return t; }
-  } catch (_) { }
-  cache.put('ecole_fail', '1', 900);
-  return '';
-}
+function ecoleIcs() { return ''; }   // plus de UrlFetchApp ici (scope refusé par Google) : la fusion se fait sur le VPS (vps/server.js)
 // Événements de l'école en JSON (titre, date, heure, fin, journee)
 function ecoleEvents() {
   const txt = ecoleIcs(); if (!txt) return [];
@@ -543,4 +534,23 @@ function icsFeed(q) {
   }
   L.push('END:VCALENDAR');
   return ContentService.createTextOutput(L.join('\r\n')).setMimeType(ContentService.MimeType.ICAL);
+}
+
+
+// ---------- lecture complète pour le VPS (29/09/2026) ----------
+// Le VPS (vps/server.js) garde une copie des créneaux et la sert à la page en quelques millisecondes ; il relit ici
+// toutes les 60 s et après chaque écriture. Protégé par la propriété de script VPS_SECRET (jamais dans la page).
+function listFull(p) {
+  const vk = P.getProperty('VPS_SECRET');
+  if (!vk || String(p.vkey || '') !== vk) return { ok: false, error: 'bad vkey' };
+  const ss = book();
+  const lim = addDays(today(), -30);
+  const cr = rows(tab(ss, CR_TAB, CR_HDR), CR_KEYS).filter(c => String(c.date).slice(0, 10) >= lim).map(c => {
+    const o = {}; CR_KEYS.forEach(k => { o[k] = c[k]; });
+    o.date = String(c.date).slice(0, 10); o.heure = String(c.heure).slice(0, 5); o.duree = Number(c.duree) || 90;
+    o.email = cleanEmail(c.email); o.b_email = cleanEmail(c.b_email);
+    return o;
+  });
+  const el = rows(tab(ss, EL_TAB, EL_HDR), EL_KEYS).map(e => { const em = cleanEmail(e.email); return em ? { email: em, prenom: e.prenom || '', visio: e.visio || '', token: icsToken(em) } : null; }).filter(Boolean);
+  return { ok: true, now: stamp(), today: today(), creneaux: cr, eleves: el };
 }

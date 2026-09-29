@@ -239,6 +239,8 @@ body.embed .gate img{display:none}
 // ---------- config ----------
 const PONT = 'https://script.google.com/macros/s/AKfycbzimUVCum9OFHShtALVl_Iz64lv9ahpX3FqSif9zHr0AEb2RctBTCoXw6FHYAWrbqzrwA/exec';                       // URL /exec du pont Apps Script (remplie au déploiement)
 const KEY = 'pratiques-b65312ad3c23ea1fcf07fc92';
+// L'API du VPS (vps/server.js) : copie locale du Sheet, réponse en quelques ms ; elle relaie les écritures au pont.
+const API = 'https://187-77-169-11.sslip.io/pratiques/api';
 const PAGE_URL = 'https://selftyacademy.schoolmaker.co/products?pratiques=1';   // le tableau vit dans l'école (menu « Les pratiques »)
 const CODE = 'selfty2026';                     // code d'accès de l'école (comparé en minuscules)
 const Q = new URLSearchParams(location.search);
@@ -323,12 +325,22 @@ function partner(c) { return c.mine ? c.b_prenom : c.prenom; }
 // jamais les actions (une inscription rejouée serait refusée comme « déjà prise »).
 async function api(what, payload = {}) {
   if (LOCAL) return localApi(what, payload);
-  const tries = what === 'list' ? 3 : 1;
+  // 1. le VPS (instantané)
+  try {
+    const r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ what, ...payload }) });
+    const j = await r.json();
+    if (!j.ok) throw Object.assign(new Error(j.error || 'erreur'), { fromApi: true });
+    return j;
+  } catch (e) {
+    if (e.fromApi || what !== 'list') throw e;
+  }
+  // 2. repli : le pont Google en direct (lent), seulement pour la lecture
+  const tries = 3;
   let lastErr = null;
   for (let i = 0; i < tries; i++) {
     try {
       const r = await fetch(PONT, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ key: KEY, what, ...payload }) });
-      let j; try { j = await r.json(); } catch (_) { throw new Error(what === 'list' ? 'le pont ne répond pas' : 'Le pont a mis trop de temps à répondre. Vérifie dans quelques secondes si c\'est bien passé.'); }
+      let j; try { j = await r.json(); } catch (_) { throw new Error('le pont ne répond pas'); }
       if (!j.ok) throw new Error(j.error || 'erreur pont');
       return j;
     } catch (e) { lastErr = e; if (i < tries - 1) await new Promise(r => setTimeout(r, 1500 * (i + 1))); }
@@ -519,7 +531,7 @@ function saveMe() {
   if (vis !== (profil.visio || '')) {
     profil.visio = vis;
     try { localStorage.setItem('sp_profil', JSON.stringify(profil)); } catch (_) { }
-    api('profil_set', { prenom, email, visio: vis }).catch(() => { });
+    api('profil_set', { prenom, email, visio: vis }).then(j => { if (j && j.ics_url) { S.ics_url = j.ics_url; } }).catch(() => { });
   }
   closeModal();
   load();
@@ -705,7 +717,7 @@ function mineCard(c) {
       <div class="b">
         <div class="qui">${cap(dayLabel(c.date))}</div>
         ${c.outil ? `<div class="theme">🧰 ${esc(c.outil)}</div>` : ''}
-        ${!c.visio && (full || c.booked_by_me) ? '<div class="note">Pas de lien visio : mettez-vous d\'accord par mail (répondez au mail de confirmation) ou créez un Google Meet.</div>' : ''}
+        ${!c.visio && !c.has_visio && (full || c.booked_by_me) ? '<div class="note">Pas de lien visio : mettez-vous d\'accord par mail (répondez au mail de confirmation) ou créez un Google Meet.</div>' : ''}
         <div class="chips">${chips}</div>
       </div>
     </div>
@@ -789,13 +801,14 @@ async function submitNew() {
   if (busy) return; busy = true; const go1 = $('#f-go'); go1.disabled = true; go1.textContent = 'Un instant…';
   const outil = $('#f-outil') ? $('#f-outil').value : '', note = $('#f-note').value.trim(), duree = draft.duree;
   // affichage immédiat, le pont confirme derrière
-  const tmp = norm({ id: 'tmp' + Date.now(), date, heure, duree, prenom: me.prenom, outil, note, visio, statut: 'ouvert', mine: true, has_visio: true, b_prenom: '', b_email: '', b_role: '' });
+  const newId = 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const tmp = norm({ id: newId, date, heure, duree, prenom: me.prenom, outil, note, visio, statut: 'ouvert', mine: true, has_visio: true, b_prenom: '', b_email: '', b_role: '' });
   S.creneaux.push(tmp); S.creneaux.sort(sortSlot);
   draft = { duree: 90 };
   toast('Créneau proposé ! Il est visible par les autres élèves.');
   tab = 'mine'; history.replaceState(null, '', '#mine'); render();
   try {
-    await api('propose', { prenom: me.prenom, email: me.email, date, heure, duree, outil, visio, note });
+    await api('propose', { id: newId, prenom: me.prenom, email: me.email, date, heure, duree, outil, visio, note });
   } catch (e) { S.creneaux = S.creneaux.filter(c => c !== tmp); toast(e.message, true); }
   busy = false;
   load(true);

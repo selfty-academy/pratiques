@@ -21,6 +21,15 @@ Réponse attendue : `{"ok":true,"sheet_url":"…","triggers":["rappelVeille"],�
 
 Si l'URL n'affiche pas l'écran d'autorisation : `cd pont && clasp open-script --user selfty`, exécuter la fonction `autoriser()` dans l'éditeur, accepter, puis rouvrir l'URL de setup.
 
+## Architecture depuis le 29/09/2026 soir : le VPS devant le pont
+
+La page ne parle plus à Google directement mais à `https://187-77-169-11.sslip.io/pratiques/api` (service Node `vps/server.js`, unité systemd `selfty-agenda`) :
+
+- **Lecture** : copie locale du Sheet, réponse en ~0,1 s (le pont relu toutes les 60 s via `what=list_full` + clé `VPS_SECRET`, propriété de script posée le 29/09).
+- **Écriture** (proposer, s'inscrire, se désinscrire, annuler, profil) : validée et appliquée sur la copie en ~0,1 s, puis poussée vers le pont par une **file d'attente persistante** (`queue.json`, réessais, 8 tentatives max). Le pont écrit dans le Sheet et envoie les mails quelques secondes plus tard. Les ids de créneau sont choisis côté page/VPS et gardés par le pont (`propose` accepte `id`, `book`/`unbook` sont idempotents).
+- Le pont Google reste la source de vérité (Sheet) et le seul à envoyer des mails ; si le VPS tombe, la page se rabat sur le pont pour la lecture.
+- Agenda perso : `/pratiques/agenda.ics` (voir plus bas). Rendez-vous de l'école : lus sur le flux public par le VPS et par la page.
+
 ## Ce que fait la page
 
 - **Version du 29/09/2026 (retours d'Anaïs)** : plus de rôles (chaque pratique de 1h30 = 45 min coachée puis 45 min coach ; 45 min = une seule séance), durées **1h30 (défaut) ou 45 min**, plus de champ Thème, **lien visio obligatoire** à l'arrivée avec pas-à-pas Zoom / Meet, **outils affichés module par module** (dates d'ouverture dans `OUTILS`, l'équipe voit tout), vue **Semaine par défaut** (créneaux ouverts + binômes formés), **Stats = mes pratiques, mes heures, mon rang + classement de la promo** (les stats par outil ne sont visibles que par l'équipe), guide réécrit (vidéo de bienvenue = le GIF du post d'Anaïs, `assets/bienvenue.mp4`, onglet concerné qui « pulse » en bas), inscription / proposition / annulation **instantanées** (affichage immédiat, le pont confirme derrière), copie locale affichée dès l'ouverture, 3 essais sur la lecture quand Google renvoie sa page d'erreur.
